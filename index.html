@@ -1259,9 +1259,32 @@ async function syncWithSupabase() {
             // Seed Supabase if empty
             if (violationsData.length === 0) {
                 if (db.violations.length === 0) seedViolationCategories();
-                await supabaseClient.from('violations').insert(db.violations);
+                // Map only columns present in the Supabase public.violations table
+                const sanitized = db.violations.map(v => ({
+                    id: v.id,
+                    category_name: v.category_name,
+                    parent_category: v.parent_category,
+                    cohort: v.cohort,
+                    monetary_penalty_amount: v.monetary_penalty_amount,
+                    red_flag_count: v.red_flag_count
+                }));
+                await supabaseClient.from('violations').insert(sanitized);
             } else {
-                db.violations = violationsData;
+                // Temporarily populate local reference database if empty to get combination types
+                const localRefs = [...db.violations];
+                if (localRefs.length === 0) {
+                    seedViolationCategories();
+                }
+                
+                // Enrich Supabase violation categories with local descriptions and combination types
+                db.violations = violationsData.map(v => {
+                    const local = localRefs.find(lv => lv.id === v.id);
+                    return {
+                        ...v,
+                        combination_type: local ? local.combination_type : 'MONETARY_ONLY',
+                        description: local ? local.description : ''
+                    };
+                });
                 saveTable(DB_KEYS.VIOLATIONS, db.violations);
             }
         }
@@ -5137,6 +5160,7 @@ if (document.readyState === 'loading') {
 </script>
 </body>
 </html>
+
 
 
 
