@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fine Management System - IIM Visakhapatnam</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    .spin {
+        animation: spin 1s linear infinite;
+        display: inline-block;
+    }
+    </style>
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
             const errorDiv = document.createElement('div');
@@ -127,6 +138,9 @@
                         <span>Active Session</span>
                     </div>
                 </div>
+                <button class="logout-btn" onclick="openDbSettingsModal()" title="Database Settings" style="margin-right: 8px; color: var(--color-text-secondary);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </button>
                 <button class="logout-btn" onclick="logout()" title="Logout">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 </button>
@@ -142,6 +156,14 @@
                     <p id="viewSubtitle">Placement Fines & Red Flags Summary</p>
                 </div>
                 <div class="header-actions">
+                    <div id="dbSyncIndicator" class="system-status" style="display: none; background-color: var(--color-success-bg); color: var(--color-success); border-color: rgba(16,185,129,0.2);">
+                        <svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                        <span id="dbSyncStatusText">Supabase Syncing...</span>
+                    </div>
+                    <div id="dbLocalStatus" class="system-status" style="background-color: #f1f5f9; color: var(--color-text-secondary); border-color: var(--color-border);">
+                        <span class="status-dot" style="background-color: var(--color-text-secondary);"></span>
+                        <span>Local-Only Database</span>
+                    </div>
                     <div class="system-status">
                         <span class="status-dot"></span>
                         <span>Placement Policy 2026-27</span>
@@ -1061,6 +1083,42 @@
         </div>
     </div>
 
+    <!-- MODAL 9: DATABASE CONFIG MODAL -->
+    <div id="dbSettingsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Supabase Database Configuration</h3>
+                <button class="modal-close-btn" onclick="closeModal('dbSettingsModal')">&times;</button>
+            </div>
+            <form id="dbSettingsForm" onsubmit="saveDbSettings(event)">
+                <div class="modal-body">
+                    <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 16px; font-size: 13px; border-radius: 0 4px 4px 0; color: #1e3a8a;">
+                        Connecting to Supabase enables shared real-time data sync across Placecom members. Leave fields empty to fall back to Local-Only browser database.
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="dbSupabaseUrl">Supabase API URL</label>
+                        <input class="form-input" type="url" id="dbSupabaseUrl" placeholder="https://your-project.supabase.co">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="dbSupabaseKey">Supabase Public Anon Key</label>
+                        <input class="form-input" type="password" id="dbSupabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                    </div>
+                    
+                    <div style="font-size: 11px; color: var(--color-text-secondary); margin-bottom: 8px;">
+                        The keys are stored locally in your browser's private settings and are never shared.
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-outline" onclick="testDbConnection()" style="margin-right: auto;">Test Connection</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('dbSettingsModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save & Connect</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- MAIN APP SCRIPT -->
 <script>
 /**
@@ -1147,8 +1205,197 @@ function safeJSONParse(str, fallback = []) {
     }
 }
 
+// Global Supabase Client
+let supabaseClient = null;
+const SUPABASE_KEYS = {
+    URL: 'fms_supabase_url',
+    KEY: 'fms_supabase_key'
+};
+
+function initSupabase() {
+    const url = localStorage.getItem(SUPABASE_KEYS.URL);
+    const key = localStorage.getItem(SUPABASE_KEYS.KEY);
+    
+    if (url && key && window.supabase) {
+        try {
+            supabaseClient = window.supabase.createClient(url, key);
+            document.getElementById('dbSyncIndicator').style.display = 'inline-flex';
+            document.getElementById('dbLocalStatus').style.display = 'none';
+            return true;
+        } catch (e) {
+            console.error('Failed to initialize Supabase client:', e);
+        }
+    }
+    supabaseClient = null;
+    document.getElementById('dbSyncIndicator').style.display = 'none';
+    document.getElementById('dbLocalStatus').style.display = 'inline-flex';
+    return false;
+}
+
+function updateSyncStatusText(text) {
+    const el = document.getElementById('dbSyncStatusText');
+    if (el) el.innerText = `Supabase: ${text}`;
+}
+
+async function pushToCloud(table, item) {
+    if (!supabaseClient) return;
+    try {
+        const { error } = await supabaseClient.from(table).upsert(item);
+        if (error) console.error(`Failed to push to Supabase table ${table}:`, error);
+    } catch (e) {
+        console.error(`Supabase network push error:`, e);
+    }
+}
+
+async function syncWithSupabase() {
+    if (!supabaseClient) return;
+    
+    updateSyncStatusText('Syncing...');
+    
+    try {
+        // 1. Fetch violations
+        const { data: violationsData, error: vErr } = await supabaseClient.from('violations').select('*');
+        if (!vErr && violationsData) {
+            // Seed Supabase if empty
+            if (violationsData.length === 0) {
+                if (db.violations.length === 0) seedViolationCategories();
+                await supabaseClient.from('violations').insert(db.violations);
+            } else {
+                db.violations = violationsData;
+                saveTable(DB_KEYS.VIOLATIONS, db.violations);
+            }
+        }
+        
+        // 2. Fetch students
+        const { data: studentsData, error: sErr } = await supabaseClient.from('students').select('*');
+        if (!sErr && studentsData) {
+            db.students = studentsData;
+            saveTable(DB_KEYS.STUDENTS, db.students);
+        }
+        
+        // 3. Fetch fines
+        const { data: finesData, error: fErr } = await supabaseClient.from('fines').select('*');
+        if (!fErr && finesData) {
+            db.fines = finesData;
+            saveTable(DB_KEYS.FINES, db.fines);
+        }
+        
+        // 4. Fetch audit trail
+        const { data: auditData, error: aErr } = await supabaseClient.from('audit_trail').select('*');
+        if (!aErr && auditData) {
+            db.auditTrail = auditData;
+            saveTable(DB_KEYS.AUDIT_TRAIL, db.auditTrail);
+        }
+        
+        // 5. Fetch action logs
+        const { data: logsData, error: lErr } = await supabaseClient.from('action_log').select('*');
+        if (!lErr && logsData) {
+            db.actionLog = logsData;
+            saveTable(DB_KEYS.ADMIN_ACTION_LOG, db.actionLog);
+        }
+        
+        updateSyncStatusText('Connected');
+        
+        // Re-render layout
+        loadStudentList();
+        loadFineList();
+        if (currentView === 'audit') loadAuditLogs();
+        updateDashboardMetrics();
+        
+    } catch (e) {
+        console.error('Supabase sync error:', e);
+        updateSyncStatusText('Sync Failed');
+        showToast('Supabase connection lost. Running in offline fallback mode.', 'warning');
+    }
+}
+
+function subscribeRealtime() {
+    if (!supabaseClient) return;
+    
+    // Listen to students
+    supabaseClient.channel('realtime_students')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, payload => {
+            handleRealtimeChange('students', payload);
+        })
+        .subscribe();
+
+    // Listen to fines
+    supabaseClient.channel('realtime_fines')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'fines' }, payload => {
+            handleRealtimeChange('fines', payload);
+        })
+        .subscribe();
+
+    // Listen to audit trail
+    supabaseClient.channel('realtime_audit')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_trail' }, payload => {
+            handleRealtimeChange('audit_trail', payload);
+        })
+        .subscribe();
+
+    // Listen to action logs
+    supabaseClient.channel('realtime_logs')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'action_log' }, payload => {
+            handleRealtimeChange('action_log', payload);
+        })
+        .subscribe();
+}
+
+function handleRealtimeChange(table, payload) {
+    console.log(`Realtime update received on ${table}:`, payload);
+    
+    let targetArray = [];
+    let key = '';
+    
+    if (table === 'students') {
+        targetArray = db.students;
+        key = DB_KEYS.STUDENTS;
+    } else if (table === 'fines') {
+        targetArray = db.fines;
+        key = DB_KEYS.FINES;
+    } else if (table === 'audit_trail') {
+        targetArray = db.auditTrail;
+        key = DB_KEYS.AUDIT_TRAIL;
+    } else if (table === 'action_log') {
+        targetArray = db.actionLog;
+        key = DB_KEYS.ADMIN_ACTION_LOG;
+    }
+    
+    const event = payload.eventType;
+    
+    if (event === 'INSERT') {
+        const exists = targetArray.some(x => x.id === payload.new.id);
+        if (!exists) {
+            targetArray.unshift(payload.new);
+        }
+    } else if (event === 'UPDATE') {
+        const idx = targetArray.findIndex(x => x.id === payload.new.id);
+        if (idx !== -1) {
+            targetArray[idx] = payload.new;
+        } else {
+            targetArray.unshift(payload.new);
+        }
+    } else if (event === 'DELETE') {
+        const idx = targetArray.findIndex(x => x.id === payload.old.id);
+        if (idx !== -1) {
+            targetArray.splice(idx, 1);
+        }
+    }
+    
+    saveTable(key, targetArray);
+    
+    if (table === 'students') loadStudentList();
+    else if (table === 'fines') loadFineList();
+    else if (table === 'audit_trail' && currentView === 'audit') loadAuditLogs();
+    
+    updateDashboardMetrics();
+}
+
 // Load Database from LocalStorage
 function loadDatabase() {
+    // Initialize client
+    initSupabase();
+
     // One-time database reset triggered programmatically to clear default seeded data
     if (!localStorage.getItem('fms_flushed_v3')) {
         localStorage.clear();
@@ -1182,16 +1429,16 @@ function logAdminAction(actionType, entityType, entityId, details) {
     const action = {
         id: generateUUID(),
         admin_username: admin ? admin.username : 'system',
-        action_type: actionType, // STUDENT_CREATED, STUDENT_EDITED, STUDENT_DELETED, FINE_CREATED, FINE_EDITED, FINE_STATUS_CHANGED, FINE_DELETED, BULK_IMPORT, FILE_EXPORT
-        entity_type: entityType, // STUDENT, FINE, BULK_UPLOAD
+        action_type: actionType, 
+        entity_type: entityType, 
         entity_id: entityId,
         timestamp: new Date().toISOString(),
         details: typeof details === 'object' ? JSON.stringify(details) : details
     };
-    db.actionLog.unshift(action); // newest first
+    db.actionLog.unshift(action); 
     saveTable(DB_KEYS.ADMIN_ACTION_LOG, db.actionLog);
+    pushToCloud('action_log', action);
     
-    // If we are currently viewing the audit logs page, refresh it
     if (currentView === 'audit') {
         loadAuditLogs();
     }
@@ -1202,16 +1449,17 @@ function logFineEdit(fineId, changedField, oldValue, newValue, changeType, actio
     const audit = {
         id: generateUUID(),
         fine_id: fineId,
-        changed_field: changedField, // 'violation_category', 'monetary_penalty', 'red_flags', 'status', 'notes'
+        changed_field: changedField, 
         old_value: oldValue !== null && oldValue !== undefined ? oldValue.toString() : '',
         new_value: newValue !== null && newValue !== undefined ? newValue.toString() : '',
         change_timestamp: new Date().toISOString(),
-        change_type: changeType, // CREATED, EDITED, STATUS_CHANGED, DELETED
+        change_type: changeType, 
         admin_action_note: actionNote
     };
     db.auditTrail.unshift(audit);
     if (save) {
         saveTable(DB_KEYS.AUDIT_TRAIL, db.auditTrail);
+        pushToCloud('audit_trail', audit);
     }
 }
 
@@ -2621,6 +2869,7 @@ safeAddListener('studentForm', 'submit', function(e) {
         
         db.students.push(newStudent);
         saveTable(DB_KEYS.STUDENTS, db.students);
+        pushToCloud('students', newStudent);
         
         logAdminAction('STUDENT_CREATED', 'STUDENT', newStudent.id, `Created student ${name} (${roll}) in ${cohort} cohort.`);
         showToast(`Student ${name} successfully added!`, 'success');
@@ -2637,6 +2886,7 @@ safeAddListener('studentForm', 'submit', function(e) {
         student.updated_at = new Date().toISOString();
         
         saveTable(DB_KEYS.STUDENTS, db.students);
+        pushToCloud('students', student);
         
         logAdminAction('STUDENT_EDITED', 'STUDENT', student.id, `Edited student ${oldName} (${student.roll_number}). Changes: Name: "${oldName}" &rarr; "${name}", Email: "${oldEmail}" &rarr; "${email}".`);
         showToast('Student changes saved successfully', 'success');
@@ -2666,6 +2916,13 @@ function softDeleteStudent(id) {
         saveTable(DB_KEYS.STUDENTS, db.students);
         saveTable(DB_KEYS.FINES, db.fines);
         
+        pushToCloud('students', student);
+        db.fines.forEach(fine => {
+            if (fine.student_id === student.id) {
+                pushToCloud('fines', fine);
+            }
+        });
+        
         logAdminAction('STUDENT_DELETED', 'STUDENT', student.id, `Soft-deleted student ${student.name} and cascaded deletion of open fines.`);
         showToast('Student moved to history tab successfully.', 'warning');
         
@@ -2694,6 +2951,13 @@ function restoreStudent(id) {
     saveTable(DB_KEYS.STUDENTS, db.students);
     saveTable(DB_KEYS.FINES, db.fines);
     
+    pushToCloud('students', student);
+    db.fines.forEach(fine => {
+        if (fine.student_id === student.id) {
+            pushToCloud('fines', fine);
+        }
+    });
+    
     logAdminAction('STUDENT_RESTORED', 'STUDENT', student.id, `Restored student ${student.name} from trash bin.`);
     showToast(`Student ${student.name} has been restored.`, 'success');
     
@@ -2712,6 +2976,11 @@ function permanentPurgeStudent(id) {
         
         saveTable(DB_KEYS.STUDENTS, db.students);
         saveTable(DB_KEYS.FINES, db.fines);
+        
+        if (supabaseClient) {
+            supabaseClient.from('students').delete().eq('id', id).then();
+            supabaseClient.from('fines').delete().eq('student_id', id).then();
+        }
         
         logAdminAction('STUDENT_PURGED', 'STUDENT', id, `Permanently purged student ${student.name} from system database.`);
         showToast('Student record purged permanently.', 'danger');
@@ -3419,6 +3688,7 @@ safeAddListener('fineForm', 'submit', function(e) {
         
         db.fines.push(newFine);
         saveTable(DB_KEYS.FINES, db.fines);
+        pushToCloud('fines', newFine);
         
         logFineEdit(newFine.id, 'status', null, 'OPEN', 'CREATED', 'Manual fine registration');
         logAdminAction('FINE_CREATED', 'FINE', newFine.id, `Created fine of ₹${amount} (${redFlags} Red Flags) for student ${student ? student.name : 'Unknown'} (${cohort}).`);
@@ -3465,6 +3735,7 @@ safeAddListener('fineForm', 'submit', function(e) {
         if (changed) {
             fine.updated_at = new Date().toISOString();
             saveTable(DB_KEYS.FINES, db.fines);
+            pushToCloud('fines', fine);
             logAdminAction('FINE_EDITED', 'FINE', fine.id, `Edited fine properties for student ${student ? student.name : 'Unknown'}.`);
             showToast('Fine changes saved successfully', 'success');
         }
@@ -3486,6 +3757,7 @@ function softDeleteFine(id) {
         fine.deleted_at = new Date().toISOString();
         
         saveTable(DB_KEYS.FINES, db.fines);
+        pushToCloud('fines', fine);
         
         logFineEdit(fine.id, 'is_deleted', 'false', 'true', 'DELETED', 'Soft-deleted by administrator');
         logAdminAction('FINE_DELETED', 'FINE', fine.id, `Soft-deleted fine ID ${fine.id}.`);
@@ -3511,6 +3783,7 @@ function restoreFine(id) {
     fine.updated_at = new Date().toISOString();
     
     saveTable(DB_KEYS.FINES, db.fines);
+    pushToCloud('fines', fine);
     
     logFineEdit(fine.id, 'is_deleted', 'true', 'false', 'EDITED', 'Restored from history trash bin');
     logAdminAction('FINE_RESTORED', 'FINE', fine.id, `Restored fine ID ${fine.id} to active registry.`);
@@ -3529,6 +3802,7 @@ function triggerBulkSoftDelete() {
             if (fine) {
                 fine.is_deleted = true;
                 fine.deleted_at = new Date().toISOString();
+                pushToCloud('fines', fine);
                 logFineEdit(fine.id, 'is_deleted', 'false', 'true', 'DELETED', 'Bulk soft-deleted by administrator');
             }
         });
@@ -4073,6 +4347,7 @@ function executeStudentImport() {
         };
         db.students.push(student);
         added++;
+        pushToCloud('students', student);
     });
 
     saveTable(DB_KEYS.STUDENTS, db.students);
@@ -4293,6 +4568,7 @@ function executeFineImport() {
         };
         db.fines.push(fine);
         importedCount++;
+        pushToCloud('fines', fine);
         
         logFineEdit(fine.id, 'status', null, 'OPEN', 'CREATED', 'Registered via Bulk Upload process');
     });
@@ -4479,6 +4755,7 @@ function executePaymentProcessing() {
             }
             fine.updated_at = new Date().toISOString();
             closedCount++;
+            pushToCloud('fines', fine);
             logFineEdit(fine.id, 'status', oldStatus, item.newStatus, 'STATUS_CHANGED', `${item.closureReason}: ${item.auditComments}`);
         };
 
@@ -4768,6 +5045,73 @@ function formatDate(isoString) {
     });
 }
 
+function openDbSettingsModal() {
+    document.getElementById('dbSupabaseUrl').value = localStorage.getItem(SUPABASE_KEYS.URL) || '';
+    document.getElementById('dbSupabaseKey').value = localStorage.getItem(SUPABASE_KEYS.KEY) || '';
+    openModal('dbSettingsModal');
+}
+
+function saveDbSettings(event) {
+    event.preventDefault();
+    const url = document.getElementById('dbSupabaseUrl').value.trim();
+    const key = document.getElementById('dbSupabaseKey').value.trim();
+    
+    if (url && !key) {
+        showToast('Supabase key is required to connect.', 'warning');
+        return;
+    }
+    
+    if (!url && key) {
+        showToast('Supabase URL is required to connect.', 'warning');
+        return;
+    }
+    
+    if (url && key) {
+        localStorage.setItem(SUPABASE_KEYS.URL, url);
+        localStorage.setItem(SUPABASE_KEYS.KEY, key);
+        showToast('Database configuration updated. Connecting...', 'success');
+    } else {
+        localStorage.removeItem(SUPABASE_KEYS.URL);
+        localStorage.removeItem(SUPABASE_KEYS.KEY);
+        showToast('Database configuration removed. Falling back to local.', 'warning');
+    }
+    
+    closeModal('dbSettingsModal');
+    
+    // Reload the application state
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+async function testDbConnection() {
+    const url = document.getElementById('dbSupabaseUrl').value.trim();
+    const key = document.getElementById('dbSupabaseKey').value.trim();
+    
+    if (!url || !key) {
+        showToast('Please provide both URL and Key to test.', 'warning');
+        return;
+    }
+    
+    showToast('Testing Supabase connection...', 'info');
+    
+    try {
+        const testClient = window.supabase.createClient(url, key);
+        // Attempt to fetch from violations table to check permissions
+        const { data, error } = await testClient.from('violations').select('id').limit(1);
+        
+        if (error) {
+            console.error('Test connection error:', error);
+            showToast(`Connection failed: ${error.message}`, 'danger');
+        } else {
+            showToast('Connection Successful! Database structure matches.', 'success');
+        }
+    } catch (e) {
+        console.error('Test connection exception:', e);
+        showToast(`Connection failed: Check URL format.`, 'danger');
+    }
+}
+
 // ==========================================
 // 12. INITIALIZATION
 // ==========================================
@@ -4776,6 +5120,11 @@ function initializeApp() {
     loadDatabase();
     checkAuthentication();
     populateViolationCategoryFilters();
+    
+    if (supabaseClient) {
+        syncWithSupabase();
+        subscribeRealtime();
+    }
 }
 
 // Safe check if document has already loaded
@@ -4788,6 +5137,7 @@ if (document.readyState === 'loading') {
 </script>
 </body>
 </html>
+
 
 
 
