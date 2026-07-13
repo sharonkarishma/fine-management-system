@@ -1255,67 +1255,76 @@ async function syncWithSupabase() {
     try {
         // 1. Fetch violations
         const { data: violationsData, error: vErr } = await supabaseClient.from('violations').select('*');
-        if (!vErr && violationsData) {
-            // Seed Supabase if empty
-            if (violationsData.length === 0) {
-                if (db.violations.length === 0) seedViolationCategories();
-                // Map only columns present in the Supabase public.violations table
-                const sanitized = db.violations.map(v => ({
-                    id: v.id,
-                    category_name: v.category_name,
-                    parent_category: v.parent_category,
-                    cohort: v.cohort,
-                    monetary_penalty_amount: v.monetary_penalty_amount,
-                    red_flag_count: v.red_flag_count
-                }));
-                await supabaseClient.from('violations').insert(sanitized);
-            } else {
-                // Temporarily populate local reference database if empty to get combination types
-                const localRefs = [...db.violations];
-                if (localRefs.length === 0) {
-                    seedViolationCategories();
-                }
-                
-                // Enrich Supabase violation categories with local descriptions and combination types
-                db.violations = violationsData.map(v => {
-                    const local = localRefs.find(lv => lv.id === v.id);
-                    return {
-                        ...v,
-                        combination_type: local ? local.combination_type : 'MONETARY_ONLY',
-                        description: local ? local.description : ''
-                    };
-                });
-                saveTable(DB_KEYS.VIOLATIONS, db.violations);
+        if (vErr || !violationsData) {
+            throw new Error(`Violations fetch error: ${vErr ? vErr.message : 'No data returned'}`);
+        }
+        
+        // Seed Supabase if empty
+        if (violationsData.length === 0) {
+            if (db.violations.length === 0) seedViolationCategories();
+            // Map only columns present in the Supabase public.violations table
+            const sanitized = db.violations.map(v => ({
+                id: v.id,
+                category_name: v.category_name,
+                parent_category: v.parent_category,
+                cohort: v.cohort,
+                monetary_penalty_amount: v.monetary_penalty_amount,
+                red_flag_count: v.red_flag_count
+            }));
+            const { error: insErr } = await supabaseClient.from('violations').insert(sanitized);
+            if (insErr) {
+                throw new Error(`Failed to seed violations table: ${insErr.message}`);
             }
+        } else {
+            // Temporarily populate local reference database if empty to get combination types
+            const localRefs = [...db.violations];
+            if (localRefs.length === 0) {
+                seedViolationCategories();
+            }
+            
+            // Enrich Supabase violation categories with local descriptions and combination types
+            db.violations = violationsData.map(v => {
+                const local = localRefs.find(lv => lv.id === v.id);
+                return {
+                    ...v,
+                    combination_type: local ? local.combination_type : 'MONETARY_ONLY',
+                    description: local ? local.description : ''
+                };
+            });
+            saveTable(DB_KEYS.VIOLATIONS, db.violations);
         }
         
         // 2. Fetch students
         const { data: studentsData, error: sErr } = await supabaseClient.from('students').select('*');
-        if (!sErr && studentsData) {
-            db.students = studentsData;
-            saveTable(DB_KEYS.STUDENTS, db.students);
+        if (sErr || !studentsData) {
+            throw new Error(`Students fetch error: ${sErr ? sErr.message : 'No data returned'}`);
         }
+        db.students = studentsData;
+        saveTable(DB_KEYS.STUDENTS, db.students);
         
         // 3. Fetch fines
         const { data: finesData, error: fErr } = await supabaseClient.from('fines').select('*');
-        if (!fErr && finesData) {
-            db.fines = finesData;
-            saveTable(DB_KEYS.FINES, db.fines);
+        if (fErr || !finesData) {
+            throw new Error(`Fines fetch error: ${fErr ? fErr.message : 'No data returned'}`);
         }
+        db.fines = finesData;
+        saveTable(DB_KEYS.FINES, db.fines);
         
         // 4. Fetch audit trail
         const { data: auditData, error: aErr } = await supabaseClient.from('audit_trail').select('*');
-        if (!aErr && auditData) {
-            db.auditTrail = auditData;
-            saveTable(DB_KEYS.AUDIT_TRAIL, db.auditTrail);
+        if (aErr || !auditData) {
+            throw new Error(`Audit trail fetch error: ${aErr ? aErr.message : 'No data returned'}`);
         }
+        db.auditTrail = auditData;
+        saveTable(DB_KEYS.AUDIT_TRAIL, db.auditTrail);
         
         // 5. Fetch action logs
         const { data: logsData, error: lErr } = await supabaseClient.from('action_log').select('*');
-        if (!lErr && logsData) {
-            db.actionLog = logsData;
-            saveTable(DB_KEYS.ADMIN_ACTION_LOG, db.actionLog);
+        if (lErr || !logsData) {
+            throw new Error(`Action log fetch error: ${lErr ? lErr.message : 'No data returned'}`);
         }
+        db.actionLog = logsData;
+        saveTable(DB_KEYS.ADMIN_ACTION_LOG, db.actionLog);
         
         updateSyncStatusText('Connected');
         
@@ -1328,7 +1337,7 @@ async function syncWithSupabase() {
     } catch (e) {
         console.error('Supabase sync error:', e);
         updateSyncStatusText('Sync Failed');
-        showToast('Supabase connection lost. Running in offline fallback mode.', 'warning');
+        showToast(`Supabase Sync Failed: ${e.message}`, 'warning');
     }
 }
 
@@ -5160,6 +5169,7 @@ if (document.readyState === 'loading') {
 </script>
 </body>
 </html>
+
 
 
 
