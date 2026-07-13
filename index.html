@@ -1332,7 +1332,7 @@ async function syncWithSupabase() {
         loadStudentList();
         loadFineList();
         if (currentView === 'audit') loadAuditLogs();
-        updateDashboardMetrics();
+        initializeDashboard();
         
     } catch (e) {
         console.error('Supabase sync error:', e);
@@ -1420,7 +1420,7 @@ function handleRealtimeChange(table, payload) {
     else if (table === 'fines') loadFineList();
     else if (table === 'audit_trail' && currentView === 'audit') loadAuditLogs();
     
-    updateDashboardMetrics();
+    initializeDashboard();
 }
 
 // Load Database from LocalStorage
@@ -5169,6 +5169,7 @@ if (document.readyState === 'loading') {
 </script>
 </body>
 </html>
+
 
 
 
