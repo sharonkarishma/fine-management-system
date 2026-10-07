@@ -1,0 +1,1995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fine Management System - IIM Visakhapatnam</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    .spin {
+        animation: spin 1s linear infinite;
+        display: inline-block;
+    }
+    </style>
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            const errorDiv = document.createElement('div');
+            errorDiv.style.position = 'fixed';
+            errorDiv.style.top = '0';
+            errorDiv.style.left = '0';
+            errorDiv.style.right = '0';
+            errorDiv.style.backgroundColor = '#fef2f2';
+            errorDiv.style.color = '#ef4444';
+            errorDiv.style.borderBottom = '3px solid #ef4444';
+            errorDiv.style.padding = '20px';
+            errorDiv.style.zIndex = '9999';
+            errorDiv.style.fontFamily = 'monospace';
+            errorDiv.style.fontSize = '14px';
+            errorDiv.innerHTML = '<strong>Application Error:</strong><br>' + 
+                                'Message: ' + message + '<br>' +
+                                'Source: ' + source + '<br>' +
+                                'Line: ' + lineno + ':' + colno + '<br>' +
+                                (error && error.stack ? 'Stack:<br>' + error.stack.replace(/\n/g, '<br>') : '');
+            document.body.appendChild(errorDiv);
+            return false;
+        };
+    </script>
+</head>
+<body>
+    <!-- Toast notifications container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#1e3a8a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-shield"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <h1 style="margin-top: 10px;">IIM Visakhapatnam</h1>
+                <p>Fine Management System</p>
+            </div>
+            <div id="loginErrorAlert" class="alert alert-danger" style="display: none; padding: 10px; margin-bottom: 15px; font-size: 13px;">
+                Invalid username or password. Please try again.
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="username">Username</label>
+                    <input class="form-input" type="text" id="username" placeholder="Enter admin username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input class="form-input" type="password" id="password" placeholder="Enter password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary login-btn">
+                    <span>Log In</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+            </form>
+            <div class="login-footer">
+                &copy; 2026 IIM Visakhapatnam Placement Committee.
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP INTERFACE -->
+    <div id="appInterface" class="app-container" style="display: none;">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <div>
+                        <h2>IIM Vizag</h2>
+                        <span>Fine Manager</span>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-label">Main</div>
+                <ul class="nav-list">
+                    <li id="navDashboard" class="nav-item active">
+                        <a onclick="switchView('dashboard')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li id="navRedFlags" class="nav-item">
+                        <a onclick="switchView('red-flags')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                            <span>Red Flag Registry</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="nav-label">Data Master</div>
+                <ul class="nav-list">
+                    <li id="navStudentMaster" class="nav-item">
+                        <a onclick="switchView('students')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            <span>Student Master</span>
+                        </a>
+                    </li>
+                    <li id="navCohortMaster" class="nav-item">
+                        <a onclick="switchView('cohort-master')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                            <span>Cohort Master</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="nav-label">Event Management</div>
+                <ul class="nav-list">
+                    <li id="navViewEvents" class="nav-item">
+                        <a onclick="switchView('events')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span>View Events</span>
+                        </a>
+                    </li>
+                    <li id="navManageEvent" class="nav-item" style="display: none;">
+                        <a onclick="switchView('manage-event')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            <span>Manage Event</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="nav-label">Penalties</div>
+                <ul class="nav-list">
+                    <li id="navFineManagement" class="nav-item">
+                        <a onclick="switchView('fines')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            <span>Fine Registry</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="nav-label">Compliance</div>
+                <ul class="nav-list">
+                    <li id="navAuditLogs" class="nav-item">
+                        <a onclick="switchView('audit')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            <span>Admin Activity Log</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="admin-avatar" id="adminAvatar">AD</div>
+                <div class="admin-info">
+                    <div class="admin-name" id="adminName">Administrator</div>
+                    <div class="admin-role">
+                        <span class="status-dot"></span>
+                        <span>Active Session</span>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="openDbSettingsModal()" title="Database Settings" style="margin-right: 8px; color: var(--color-text-secondary);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </button>
+                <button class="logout-btn" onclick="logout()" title="Logout">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT CONTAINER -->
+        <main class="main-content">
+            <!-- TOP NAVBAR -->
+            <header class="top-header">
+                <div class="page-title-container">
+                    <h1 id="viewTitle">Dashboard</h1>
+                    <p id="viewSubtitle">Placement Fines & Red Flags Summary</p>
+                </div>
+                <div class="header-actions">
+                    <div id="dbSyncIndicator" class="system-status" style="display: none; background-color: var(--color-success-bg); color: var(--color-success); border-color: rgba(16,185,129,0.2);">
+                        <svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                        <span id="dbSyncStatusText">Supabase Syncing...</span>
+                    </div>
+                    <div id="dbLocalStatus" class="system-status" style="background-color: #f1f5f9; color: var(--color-text-secondary); border-color: var(--color-border);">
+                        <span class="status-dot" style="background-color: var(--color-text-secondary);"></span>
+                        <span>Local-Only Database</span>
+                    </div>
+                    <div class="system-status">
+                        <span class="status-dot"></span>
+                        <span>Placement Policy 2026-27</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- PAGE VIEWS WRAPPER -->
+            <div class="page-wrapper">
+                
+                <!-- 1. DASHBOARD VIEW -->
+                <section id="viewDashboard" class="view-section active">
+                    <div class="quick-actions">
+                        <button class="btn btn-primary" onclick="openAddStudentModal()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                            <span>Add Student</span>
+                        </button>
+                        <button class="btn btn-primary" onclick="openAddFineModal()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span>Add Fine</span>
+                        </button>
+                    </div>
+
+                    <!-- COMBINED SUMMARY PANELS -->
+                    <div class="cohort-section-title" style="margin-top: 10px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span>Unified Overview & Risk Assessment</span>
+                    </div>
+                    <div class="metrics-grid" style="margin-bottom: 24px;">
+                        <div class="metric-card info" onclick="switchView('fines')">
+                            <div class="metric-header">
+                                <span>Combined Outstanding Pending Amount</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="combinedPendingAmount">₹0</div>
+                            <div class="metric-footer">Across both manual & event-linked open fines</div>
+                        </div>
+                        <div class="metric-card danger" onclick="switchView('red-flags')">
+                            <div class="metric-header">
+                                <span>At-Risk Students (3+ Red Flags)</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="combinedAtRiskCount">0</div>
+                            <div class="metric-footer">Students suspended from placement process</div>
+                        </div>
+                    </div>
+
+                    <!-- SUMMER COHORT METRICS -->
+                    <div class="cohort-section-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                        <span>Summers - Fine Modules</span>
+                    </div>
+
+                    <div style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-secondary); margin-bottom: 10px;">Direct Manual Fines</div>
+                    <div class="metrics-grid" style="margin-bottom: 20px;">
+                        <div class="metric-card primary" onclick="switchView('fines')">
+                            <div class="metric-header">
+                                <span>Total Direct Fines</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="sipTotalDirectFines">0</div>
+                            <div class="metric-footer">Total manually recorded fine entries</div>
+                        </div>
+                        <div class="metric-card warning" onclick="switchView('fines')">
+                            <div class="metric-header">
+                                <span>Open Fines</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="sipOpenDirectFines">0</div>
+                            <div class="metric-footer">Fines awaiting payment</div>
+                        </div>
+                        <div class="metric-card success" onclick="switchView('fines')">
+                            <div class="metric-header">
+                                <span>Closed Fines</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="sipClosedDirectFines">0</div>
+                            <div class="metric-footer">Fines fully paid / waived</div>
+                        </div>
+                        <div class="metric-card danger" onclick="switchView('fines')">
+                            <div class="metric-header">
+                                <span>Carried Forward</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="sipCarriedDirectFines">0</div>
+                            <div class="metric-footer">Transferred to next placements</div>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-secondary); margin-bottom: 10px; margin-top: 15px;">Event-centric Violations</div>
+                    <div class="metrics-grid" style="margin-bottom: 30px;">
+                        <div class="metric-card primary" onclick="switchView('events')">
+                            <div class="metric-header">
+                                <span>Total Events</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="sipTotalEvents">0</div>
+                            <div class="metric-footer">Total placement sessions tracked</div>
+                        </div>
+                        <div class="metric-card success" onclick="switchView('events')">
+                            <div class="metric-header">
+                                <span>Total Attended</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="sipAttendedEvents">0</div>
+                            <div class="metric-footer">Students present in attendance CSVs</div>
+                        </div>
+                        <div class="metric-card danger" onclick="switchView('events')">
+                            <div class="metric-header">
+                                <span>Total Absent (Fined)</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="sipAbsentFinedEvents">0</div>
+                            <div class="metric-footer">Students auto-fined for absences</div>
+                        </div>
+                        <div class="metric-card warning" onclick="switchView('events')">
+                            <div class="metric-header">
+                                <span>Proofs Awaiting Review</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="sipProofsAwaitingEvents">0</div>
+                            <div class="metric-footer">Uploaded payment proofs in review</div>
+                        </div>
+                    </div>
+
+                    <!-- FINAL COHORT METRICS -->
+                    <div class="cohort-section-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <span>Finals - Fine Modules</span>
+                    </div>
+
+                    <div style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-secondary); margin-bottom: 10px;">Direct Manual Fines</div>
+                    <div class="metrics-grid" style="margin-bottom: 20px;">
+                        <div class="metric-card primary" onclick="switchView('fines')">
+                            <div class="metric-header">
+                                <span>Total Direct Fines</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="finalTotalDirectFines">0</div>
+                            <div class="metric-footer">Total manually recorded fine entries</div>
+                        </div>
+                        <div class="metric-card warning" onclick="switchView('fines')">
+                            <div class="metric-header">
+                                <span>Open Fines</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="finalOpenDirectFines">0</div>
+                            <div class="metric-footer">Fines awaiting payment</div>
+                        </div>
+                        <div class="metric-card success" onclick="switchView('fines')">
+                            <div class="metric-header">
+                                <span>Closed Fines</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="finalClosedDirectFines">0</div>
+                            <div class="metric-footer">Fines fully paid / waived</div>
+                        </div>
+                        <div class="metric-card danger" onclick="switchView('fines')">
+                            <div class="metric-header">
+                                <span>Carried Forward</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="finalCarriedDirectFines">0</div>
+                            <div class="metric-footer">Transferred to next placements</div>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-secondary); margin-bottom: 10px; margin-top: 15px;">Event-centric Violations</div>
+                    <div class="metrics-grid" style="margin-bottom: 24px;">
+                        <div class="metric-card primary" onclick="switchView('events')">
+                            <div class="metric-header">
+                                <span>Total Events</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="finalTotalEvents">0</div>
+                            <div class="metric-footer">Total placement sessions tracked</div>
+                        </div>
+                        <div class="metric-card success" onclick="switchView('events')">
+                            <div class="metric-header">
+                                <span>Total Attended</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="finalAttendedEvents">0</div>
+                            <div class="metric-footer">Students present in attendance CSVs</div>
+                        </div>
+                        <div class="metric-card danger" onclick="switchView('events')">
+                            <div class="metric-header">
+                                <span>Total Absent (Fined)</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="finalAbsentFinedEvents">0</div>
+                            <div class="metric-footer">Students auto-fined for absences</div>
+                        </div>
+                        <div class="metric-card warning" onclick="switchView('events')">
+                            <div class="metric-header">
+                                <span>Proofs Awaiting Review</span>
+                                <div class="metric-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+                            </div>
+                            <div class="metric-value" id="finalProofsAwaitingEvents">0</div>
+                            <div class="metric-footer">Uploaded payment proofs in review</div>
+                        </div>
+                    </div>
+
+                    <!-- Visual Analytics Grid -->
+                    <div class="dashboard-visuals">
+                        <!-- Chart section -->
+                        <div class="card">
+                            <div class="card-title">
+                                <span>Fine Distribution by Policy Category</span>
+                                <span class="card-subtitle">Top Categories by Open Penalty Count</span>
+                            </div>
+                            <div class="chart-container" id="categoryDistributionChart">
+                                <!-- Bars will be dynamically injected here -->
+                            </div>
+                        </div>
+                        <!-- Recent activity log -->
+                        <div class="card">
+                            <div class="card-title">
+                                <span>System Activity Trail</span>
+                                <span class="card-subtitle">Last 10 Actions</span>
+                            </div>
+                            <ul class="activity-list" id="dashboardActivityList">
+                                <!-- Injected by JS -->
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. STUDENT MASTER DATA VIEW -->
+                <section id="viewStudentMaster" class="view-section">
+                    <div class="tabs-container">
+                        <button class="tab-btn active" id="studentTabActive" onclick="switchStudentTab('active')">Active Cohorts <span class="tab-badge" id="studentBadgeActive">0</span></button>
+                        <button class="tab-btn" id="studentTabHistory" onclick="switchStudentTab('history')">Soft-Deleted / History <span class="tab-badge" id="studentBadgeHistory">0</span></button>
+                    </div>
+
+                    <!-- Toolbar -->
+                    <div class="toolbar">
+                        <div class="search-filter-group">
+                            <div class="search-input-wrapper">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" class="search-input" id="studentSearchInput" placeholder="Search by Name or Roll Number..." autocomplete="off">
+                                <div id="studentSuggestions" class="autocomplete-suggestions"></div>
+                            </div>
+                            <select class="filter-select" id="studentCohortFilter">
+                                <option value="">All Cohorts</option>
+                                <option value="SUMMER_2026_27">Summers</option>
+                                <option value="FINAL_2026_27">Finals</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-outline" onclick="openBulkImportStudentsModal()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                <span>Bulk Import Students</span>
+                            </button>
+                            <button class="btn btn-primary" onclick="openAddStudentModal()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                                <span>Add Student</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Students Table -->
+                    <div class="table-container">
+                        <table class="responsive-table" id="studentTable">
+                            <thead>
+                                <tr>
+                                    <th onclick="sortStudents('name')">Student Name <span class="sort-icon" id="studentSort_name">&#8645;</span></th>
+                                    <th onclick="sortStudents('roll_number')">Roll Number <span class="sort-icon" id="studentSort_roll_number">&#8645;</span></th>
+                                    <th onclick="sortStudents('email_id')">Email ID <span class="sort-icon" id="studentSort_email_id">&#8645;</span></th>
+                                    <th onclick="sortStudents('cohort')">Cohort <span class="sort-icon" id="studentSort_cohort">&#8645;</span></th>
+                                    <th>Placement Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentTableBody">
+                                <!-- Injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Student Paging -->
+                    <div class="pagination">
+                        <div class="pagination-info" id="studentPaginationInfo">Showing 0-0 of 0 students</div>
+                        <div class="pagination-controls">
+                            <select class="page-size-selector" id="studentPageSize" onchange="changeStudentPageSize()">
+                                <option value="25">25 per page</option>
+                                <option value="50">50 per page</option>
+                                <option value="100">100 per page</option>
+                            </select>
+                            <button class="pagination-btn" id="studentPagePrev" onclick="navigateStudentPage(-1)">&larr; Previous</button>
+                            <button class="pagination-btn" id="studentPageNext" onclick="navigateStudentPage(1)">Next &rarr;</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- COHORT MASTER VIEW -->
+                <section id="viewCohortMaster" class="view-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 style="font-size: 16px; font-weight: 600;">Cohort Configuration (Cohort Master)</h2>
+                            <p style="font-size: 13px; color: var(--color-text-secondary); margin-top: 4px;">
+                                Configure the academic batch years and the starting digits of student roll numbers to automatically resolve cohort membership.
+                            </p>
+                        </div>
+                        <div class="card-body" style="padding: 20px;">
+                            <form id="cohortMasterForm" onsubmit="handleCohortMasterSubmit(event)">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px;">
+                                    <!-- Summer Cohort Settings -->
+                                    <div style="border: 1px solid var(--color-border); padding: 16px; border-radius: var(--radius-md); background-color: #fafbfc;">
+                                        <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--color-primary);">Summers</h3>
+                                        <div class="form-group" style="margin-bottom: 12px;">
+                                            <label class="form-label" for="cmSummerYear">Academic Batch Year Range *</label>
+                                            <input class="form-input" type="text" id="cmSummerYear" placeholder="e.g. 2026-27" required oninput="updatePrefixFromYear('Summer')">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="cmSummerPrefix">Roll Number Prefix (2 digits) *</label>
+                                            <input class="form-input" type="text" id="cmSummerPrefix" placeholder="e.g. 26" required maxLength="2">
+                                            <span style="font-size: 11px; color: var(--color-text-muted); display: block; margin-top: 4px;">
+                                                Students with roll numbers starting with this prefix belong to the Summer cohort.
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Final Cohort Settings -->
+                                    <div style="border: 1px solid var(--color-border); padding: 16px; border-radius: var(--radius-md); background-color: #fafbfc;">
+                                        <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--color-primary);">Finals</h3>
+                                        <div class="form-group" style="margin-bottom: 12px;">
+                                            <label class="form-label" for="cmFinalYear">Academic Batch Year Range *</label>
+                                            <input class="form-input" type="text" id="cmFinalYear" placeholder="e.g. 2025-27" required oninput="updatePrefixFromYear('Final')">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="cmFinalPrefix">Roll Number Prefix (2 digits) *</label>
+                                            <input class="form-input" type="text" id="cmFinalPrefix" placeholder="e.g. 25" required maxLength="2">
+                                            <span style="font-size: 11px; color: var(--color-text-muted); display: block; margin-top: 4px;">
+                                                Students with roll numbers starting with this prefix belong to the Final cohort.
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--color-border); padding-top: 16px;">
+                                    <button type="submit" class="btn btn-primary">Save Cohort Mappings</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. FINE REGISTRY VIEW -->
+                <section id="viewFineManagement" class="view-section">
+                    <!-- Toolbar for general registry options -->
+                    <div class="tabs-container">
+                        <button class="tab-btn active" id="fineTabActive" onclick="switchFineTab('OPEN')">Active (Open) <span class="tab-badge" id="fineBadgeActive">0</span></button>
+                        <button class="tab-btn" id="fineTabClosed" onclick="switchFineTab('CLOSED')">Closed (Paid/Waived) <span class="tab-badge" id="fineBadgeClosed">0</span></button>
+                        <button class="tab-btn" id="fineTabCarried" onclick="switchFineTab('CARRIED_FORWARD')">Carried Forward <span class="tab-badge" id="fineBadgeCarried">0</span></button>
+                        <button class="tab-btn" id="fineTabHistory" onclick="switchFineTab('DELETED')">History (Soft-Deleted) <span class="tab-badge" id="fineBadgeHistory">0</span></button>
+                    </div>
+
+                    <!-- Multi-Filter Toolbar -->
+                    <div class="toolbar">
+                        <div class="search-filter-group" style="display: flex; gap: 12px; align-items: center; width: 100%;">
+                            <!-- Search Autocomplete -->
+                            <div class="search-input-wrapper" style="min-width: 200px; flex: 1;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" class="search-input" id="fineSearchInput" placeholder="Search student name/roll..." autocomplete="off">
+                                <div id="fineSearchSuggestions" class="autocomplete-suggestions"></div>
+                            </div>
+                            
+                            <!-- Cohort select -->
+                            <select class="filter-select" id="fineCohortFilter" style="min-width: 130px;">
+                                <option value="">All Cohorts</option>
+                                <option value="SUMMER_2026_27">Summers</option>
+                                <option value="FINAL_2026_27">Finals</option>
+                            </select>
+
+                            <!-- Multi-select Category Filter -->
+                            <div class="multi-select-container" id="categoryMultiSelect">
+                                <div class="multi-select-trigger" onclick="toggleMultiSelect('categoryMultiSelectDropdown')">
+                                    <span id="categoryMultiSelectLabel">All Categories</span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                </div>
+                                <div class="multi-select-dropdown" id="categoryMultiSelectDropdown">
+                                    <!-- Injected dynamically by JS -->
+                                </div>
+                            </div>
+
+                            <!-- Red Flag Filter -->
+                            <select class="filter-select" id="fineRedFlagFilter" style="min-width: 140px;">
+                                <option value="">All Red Flags</option>
+                                <option value="1">Students &ge; 1 Red Flag</option>
+                                <option value="2">Students &ge; 2 Red Flags</option>
+                                <option value="3">Students &ge; 3 Red Flags</option>
+                            </select>
+
+                            <!-- Advanced: Multiple categories checkbox -->
+                            <label class="checkbox-filter-label">
+                                <input type="checkbox" id="fineMultipleCategoriesCheckbox" class="table-checkbox">
+                                <span>Multi-category Violators</span>
+                            </label>
+                            
+                            <!-- Active Filters Indicator -->
+                            <span class="active-filter-indicator" id="activeFilterCount">0 active filters</span>
+                             <button class="btn btn-sm btn-secondary" onclick="clearAllFineFilters()" style="margin-left: auto;">Clear Filters</button>
+                             <button class="btn btn-sm btn-outline" onclick="openPaymentConfirmationsModal()">
+                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                                 <span>Payment Confirmations</span>
+                             </button>
+                             <button class="btn btn-sm btn-outline" onclick="openBulkImportFinesModal()">
+                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                                 <span>Upload Fines</span>
+                             </button>
+                             <button class="btn btn-sm btn-primary" onclick="openAddFineModal()">
+                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                 <span>Add Fine</span>
+                             </button>
+                             <button class="btn btn-sm btn-secondary" onclick="openExportModal()">
+                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                 <span>Export Data</span>
+                             </button>
+                        </div>
+                    </div>
+
+                    <!-- Fines Registry Table -->
+                    <div class="table-container">
+                        <table class="responsive-table" id="fineTable">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell" id="thFineCheckboxHeader">
+                                        <input type="checkbox" class="table-checkbox" id="selectAllFinesCheckbox" onclick="toggleSelectAllFines()">
+                                    </th>
+                                    <th onclick="sortFines('studentName')">Student Name <span class="sort-icon" id="fineSort_studentName">&#8645;</span></th>
+                                    <th onclick="sortFines('rollNumber')">Roll Number <span class="sort-icon" id="fineSort_rollNumber">&#8645;</span></th>
+                                    <th onclick="sortFines('cohort')">Cohort <span class="sort-icon" id="fineSort_cohort">&#8645;</span></th>
+                                    <th onclick="sortFines('session')">Session <span class="sort-icon" id="fineSort_session">&#8645;</span></th>
+                                    <th onclick="sortFines('category')">Violation Category <span class="sort-icon" id="fineSort_category">&#8645;</span></th>
+                                    <th onclick="sortFines('penalty')">Monetary Penalty <span class="sort-icon" id="fineSort_penalty">&#8645;</span></th>
+                                    <th>Red Flags</th>
+                                    <th onclick="sortFines('status')">Status <span class="sort-icon" id="fineSort_status">&#8645;</span></th>
+                                    <th>Placement Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fineTableBody">
+                                <!-- Injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Fines Paging -->
+                    <div class="pagination">
+                        <div class="pagination-info" id="finePaginationInfo">Showing 0-0 of 0 fines</div>
+                        <div class="pagination-controls">
+                            <select class="page-size-selector" id="finePageSize" onchange="changeFinePageSize()">
+                                <option value="25">25 per page</option>
+                                <option value="50">50 per page</option>
+                                <option value="100">100 per page</option>
+                            </select>
+                            <button class="pagination-btn" id="finePagePrev" onclick="navigateFinePage(-1)">&larr; Previous</button>
+                            <button class="pagination-btn" id="finePageNext" onclick="navigateFinePage(1)">Next &rarr;</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. SYSTEM AUDIT VIEW -->
+                <section id="viewAuditLogs" class="view-section">
+                    <div class="card">
+                        <div class="card-title">
+                            <span>Admin Action Audit Logs</span>
+                            <span class="card-subtitle">All database transactions and admin changes tracked in real-time</span>
+                        </div>
+                        
+                        <div class="toolbar" style="margin-bottom: 16px;">
+                            <div class="search-filter-group">
+                                <select class="filter-select" id="auditActionTypeFilter" onchange="loadAuditLogs()">
+                                    <option value="">All Action Types</option>
+                                    <option value="STUDENT_CREATED">Student Created</option>
+                                    <option value="STUDENT_EDITED">Student Edited</option>
+                                    <option value="STUDENT_DELETED">Student Deleted</option>
+                                    <option value="FINE_CREATED">Fine Created</option>
+                                    <option value="FINE_EDITED">Fine Edited</option>
+                                    <option value="FINE_STATUS_CHANGED">Fine Status Changed</option>
+                                    <option value="FINE_DELETED">Fine Deleted</option>
+                                    <option value="BULK_IMPORT">Bulk Import</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="responsive-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Admin User</th>
+                                        <th>Action Type</th>
+                                        <th>Entity Affected</th>
+                                        <th>Log details</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="auditTableBody">
+                                    <!-- Injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. EVENT DASHBOARD LIST VIEW -->
+                <section id="viewEvents" class="view-section">
+                    <div id="eventsSuccessBanner" class="alert alert-success" style="display: none; padding: 12px 16px; margin-bottom: 16px;"></div>
+                    <div class="toolbar">
+                        <div class="search-filter-group" style="display: flex; gap: 12px; align-items: center; width: 100%;">
+                            <div class="search-input-wrapper" style="min-width: 250px; flex: 1;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" class="search-input" id="eventSearchInput" placeholder="Search by Event Name..." oninput="loadEventsList()">
+                            </div>
+                            
+                            <select class="filter-select" id="eventCohortFilter" onchange="loadEventsList()" style="min-width: 140px;">
+                                <option value="">All Cohorts</option>
+                                <option value="SUMMER_2026_27">Summers</option>
+                                <option value="FINAL_2026_27">Finals</option>
+                            </select>
+
+                            <select class="filter-select" id="eventCategoryFilter" onchange="loadEventsList()" style="min-width: 200px;">
+                                <option value="">All Categories</option>
+                            </select>
+
+                            <button class="btn btn-primary" onclick="openCreateEventModal()" style="margin-left: auto;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                <span>Create Event</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="responsive-table" id="eventsTable">
+                            <thead>
+                                <tr>
+                                    <th>Event Name</th>
+                                    <th>Cohort</th>
+                                    <th>Violation Category</th>
+                                    <th>Event Date</th>
+                                    <th>Fined Count</th>
+                                    <th>Registered Count</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="eventsTableBody">
+                                <!-- Injected dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+
+
+                <!-- 7. MANAGE EVENT DETAIL VIEW -->
+                <section id="viewManageEvent" class="view-section">
+                    <div class="event-details-card card" style="margin-bottom: 24px; padding: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <h2 style="display: flex; align-items: center; gap: 12px; font-family: var(--font-title); font-size: 22px; color: var(--color-primary); margin: 0;">
+                                    <span id="eventDetailName">Event Name</span>
+                                    <button class="btn btn-sm btn-outline" onclick="openEditEventModal()" style="padding: 4px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                        <span>Edit Event</span>
+                                    </button>
+                                </h2>
+                                <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: var(--color-text-secondary);">
+                                    <span><strong>Cohort:</strong> <span id="eventDetailCohort">Summer</span></span>
+                                    <span><strong>Linked Category:</strong> <span id="eventDetailCategory">Category</span></span>
+                                    <span><strong>Date:</strong> <span id="eventDetailDate">Date</span></span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-sm btn-outline" onclick="openUploadAttendanceModal()">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                    <span>Upload Attendance</span>
+                                </button>
+                                <button class="btn btn-sm btn-outline" onclick="openUploadEventProofModal()">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                                    <span>Upload Payment Proof</span>
+                                </button>
+                                <button class="btn btn-sm btn-outline" onclick="openExportModal()">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                    <span>Export Event Fines</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tabs-container">
+                        <button class="tab-btn active" id="eventDetailTabRegistered" onclick="switchEventDetailTab('REGISTERED')">Registered <span class="tab-badge" id="eventDetailRegisteredBadge">0</span></button>
+                        <button class="tab-btn" id="eventDetailTabFined" onclick="switchEventDetailTab('FINED')">Fined (Open) <span class="tab-badge" id="eventDetailFinedBadge">0</span></button>
+                        <button class="tab-btn" id="eventDetailTabPaid" onclick="switchEventDetailTab('PAID_FINE')">Paid Fine <span class="tab-badge" id="eventDetailPaidBadge">0</span></button>
+                        <button class="tab-btn" id="eventDetailTabClosed" onclick="switchEventDetailTab('CLOSED')">Closed <span class="tab-badge" id="eventDetailClosedBadge">0</span></button>
+                    </div>
+
+                    <!-- Toolbar -->
+                    <div class="toolbar">
+                        <div class="search-filter-group" style="display: flex; gap: 12px; align-items: center; width: 100%;">
+                            <div class="search-input-wrapper" style="min-width: 200px; flex: 1;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" class="search-input" id="eventDetailSearchInput" placeholder="Search by name/roll..." oninput="loadEventDetailView()">
+                            </div>
+                            
+                            <select class="filter-select" id="eventDetailCohortFilter" onchange="loadEventDetailView()" style="min-width: 150px;">
+                                <option value="">All Cohorts</option>
+                                <option value="SUMMER_2026_27">Summers</option>
+                                <option value="FINAL_2026_27">Finals</option>
+                            </select>
+                            
+                            <select class="filter-select" id="eventDetailCategoryFilter" onchange="loadEventDetailView()" style="min-width: 180px;">
+                                <option value="">All Categories</option>
+                            </select>
+                            <div id="eventDetailTabActionsContainer" style="display: flex; gap: 8px; margin-left: auto;">
+                                <!-- Injected dynamically -->
+                            </div>
+                        </div>
+                        <div class="bulk-actions-group" id="eventDetailBulkActions" style="display: none; align-items: center; gap: 8px;">
+                            <span style="font-size: 13px; color: var(--color-text-secondary); margin-right: 8px;"><strong id="eventDetailSelectedCount">0</strong> selected</span>
+                            <button class="btn btn-sm btn-primary" onclick="bulkApproveEventProofs()">Approve Proofs</button>
+                            <button class="btn btn-sm btn-danger" onclick="bulkDeleteEventFines()">Delete Fines</button>
+                        </div>
+                    </div>
+
+                    <!-- Table container -->
+                    <div class="table-container">
+                        <table class="responsive-table" id="eventDetailTable">
+                            <thead id="eventDetailTableHead">
+                                <!-- Dynamically updated head depending on active tab -->
+                            </thead>
+                            <tbody id="eventDetailTableBody">
+                                <!-- Dynamically injected rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 8. RED FLAG REGISTRY VIEW -->
+                <section id="viewRedFlags" class="view-section">
+                    <div class="toolbar">
+                        <div class="search-filter-group" style="display: flex; gap: 12px; align-items: center; width: 100%;">
+                            <div class="search-input-wrapper" style="min-width: 200px; flex: 1;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" class="search-input" id="redFlagsSearchInput" placeholder="Search by name/roll..." oninput="loadRedFlagsRegistry()">
+                            </div>
+                            
+                            <select class="filter-select" id="redFlagsCohortFilter" onchange="loadRedFlagsRegistry()" style="min-width: 140px;">
+                                <option value="">All Cohorts</option>
+                                <option value="SUMMER_2026_27">Summers</option>
+                                <option value="FINAL_2026_27">Finals</option>
+                            </select>
+
+                            <select class="filter-select" id="redFlagsRangeFilter" onchange="loadRedFlagsRegistry()" style="min-width: 160px;">
+                                <option value="">All Flag Counts</option>
+                                <option value="0-1">0-1 Red Flags</option>
+                                <option value="1-2">1-2 Red Flags</option>
+                                <option value="2-3">2-3 Red Flags</option>
+                                <option value="3+">3+ Red Flags</option>
+                            </select>
+
+                            <button class="btn btn-secondary" onclick="exportRedFlagsCSV()" style="margin-left: auto;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                <span>Export Flags</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="responsive-table" id="redFlagsTable">
+                            <thead>
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th>Roll Number</th>
+                                    <th>Cohort</th>
+                                    <th>Total Red Flags</th>
+                                    <th>Flag Breakdown</th>
+                                    <th>Last Violation Date</th>
+                                    <th>Status Indicator</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="redFlagsTableBody">
+                                <!-- Injected dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- BULK ACTION BAR -->
+    <div id="bulkActionBar" class="bulk-action-bar">
+        <div class="bulk-info"><span id="bulkSelectedCount">0</span> fines selected</div>
+        <div class="bulk-actions-group">
+            <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.2);" onclick="openBulkStatusChangeModal()">Change Status</button>
+            <button class="btn btn-danger" onclick="triggerBulkSoftDelete()">Soft-Delete</button>
+        </div>
+    </div>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- MODAL 1: ADD / EDIT STUDENT -->
+    <div id="studentModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="studentModalTitle">Add New Student</h3>
+                <button class="modal-close-btn" onclick="closeModal('studentModal')">&times;</button>
+            </div>
+            <form id="studentForm">
+                <div class="modal-body">
+                    <input type="hidden" id="studentModalMode" value="ADD">
+                    <input type="hidden" id="studentModalId">
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="studentName">Student Name *</label>
+                        <input class="form-input" type="text" id="studentName" placeholder="Enter student full name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="studentRoll">Roll Number *</label>
+                        <input class="form-input" type="text" id="studentRoll" placeholder="e.g., 2510316" required>
+                        <div id="studentRollError" style="color: var(--color-danger); font-size: 12px; margin-top: 4px; display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="studentEmail">Email ID *</label>
+                        <input class="form-input" type="email" id="studentEmail" placeholder="e.g. name@iimv.ac.in" required>
+                        <div id="studentEmailError" style="color: var(--color-danger); font-size: 12px; margin-top: 4px; display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="studentCohort">Cohort *</label>
+                        <select class="filter-select" id="studentCohort" style="width: 100%;" required>
+                            <option value="" disabled selected>Select Cohort</option>
+                            <option value="SUMMER_2026_27">Summers</option>
+                            <option value="FINAL_2026_27">Finals</option>
+                        </select>
+                        <div id="studentCohortError" style="color: var(--color-danger); font-size: 12px; margin-top: 4px; display: none;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('studentModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Student</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: ADD / EDIT FINE -->
+    <div id="fineModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="fineModalTitle">Add Placement Fine</h3>
+                <button class="modal-close-btn" onclick="closeModal('fineModal')">&times;</button>
+            </div>
+            <form id="fineForm">
+                <div class="modal-body">
+                    <input type="hidden" id="fineModalMode" value="ADD">
+                    <input type="hidden" id="fineModalId">
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="fineStudentSelect">Search & Select Student *</label>
+                        <div style="position: relative;">
+                            <input class="form-input" type="text" id="fineStudentSearch" placeholder="Type name or roll number (e.g., 2510316)..." required autocomplete="off">
+                            <input type="hidden" id="fineStudentId" required>
+                            <div id="fineStudentSuggestions" class="autocomplete-suggestions"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Cohort (Locked from Student Master)</label>
+                        <input class="form-input" type="text" id="fineCohortDisplay" readonly style="background-color: #f1f5f9; color: var(--color-text-secondary); font-weight: 600;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="fineSession">Session *</label>
+                        <input class="form-input" type="text" id="fineSession" placeholder="e.g. Microsoft PPT, Goldman GL" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="fineViolationSelect">Violation Category *</label>
+                        <select class="filter-select" id="fineViolationSelect" style="width: 100%;" required onchange="handleViolationCategoryChange()">
+                            <!-- Injected by JS -->
+                        </select>
+                    </div>
+
+                    <!-- Custom Category Override Group -->
+                    <div class="form-group" id="fineCustomCategoryGroup" style="display: none;">
+                        <label class="form-label" for="fineCustomCategory">Custom Category Name *</label>
+                        <input class="form-input" type="text" id="fineCustomCategory" placeholder="Enter custom category name">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="fineAmount">Monetary Penalty Amount (₹)</label>
+                        <input class="form-input" type="number" id="fineAmount" min="0" placeholder="0">
+                        <div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 4px;" id="fineOriginalAmountTip"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="fineRedFlags">Red Flags Count (0 - 3)</label>
+                        <select class="filter-select" id="fineRedFlags" style="width: 100%;">
+                            <option value="0">0 Red Flags</option>
+                            <option value="1">1 Red Flag</option>
+                            <option value="2">2 Red Flags</option>
+                            <option value="3">3 Red Flags</option>
+                        </select>
+                        <div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 4px;" id="fineOriginalRedFlagTip"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="fineTagType">Differentiation Tag *</label>
+                        <div style="display: flex; gap: 16px; margin-bottom: 8px;">
+                            <label class="checkbox-filter-label">
+                                <input type="radio" name="tagType" value="counter" checked onchange="handleTagTypeChange()">
+                                <span>Auto-Counter (e.g. Violation-1)</span>
+                            </label>
+                            <label class="checkbox-filter-label">
+                                <input type="radio" name="tagType" value="timestamp" onchange="handleTagTypeChange()">
+                                <span>Timestamp-based</span>
+                            </label>
+                        </div>
+                        <input class="form-input" type="text" id="fineDiffTag" placeholder="Optional tag (e.g. Violation-1)">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="fineNotes">Comments / Context Notes</label>
+                        <textarea class="form-input" id="fineNotes" rows="3" placeholder="Provide context of the rule breach..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('fineModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: BULK IMPORT STUDENTS -->
+    <div id="bulkImportStudentsModal" class="modal-overlay">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>Bulk Import Students</h3>
+                <button class="modal-close-btn" onclick="closeModal('bulkImportStudentsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- CSV guidelines banner -->
+                <div class="modal-instructions" style="background-color: #f8fafc; border-left: 4px solid var(--color-primary); padding: 12px; margin-bottom: 16px; font-size: 13px; border-radius: 0 4px 4px 0; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="flex-grow: 1; padding-right: 12px;">
+                        <p style="margin: 0 0 4px 0; font-weight: 600; color: var(--color-text-primary);">CSV Import Format Guidelines:</p>
+                        <span style="color: var(--color-text-secondary);">The file must be a standard CSV text file. Mandatory columns: <strong>Name</strong>, <strong>Roll Number</strong>, <strong>Email ID</strong>, and <strong>Cohort</strong> (Summer/Final).</span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline" style="font-size: 12px; white-space: nowrap; flex-shrink: 0;" onclick="downloadCSVTemplate('students')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        <span>Download Reference Template</span>
+                    </button>
+                </div>
+                
+                <!-- Dropzone -->
+                <div class="drag-drop-area" id="studentDropzone">
+                    <input type="file" class="file-input-hidden" id="studentFileInput" accept=".csv, .xlsx, .xls">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="drag-drop-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <div class="drag-drop-text">Drag and drop Student Master CSV or Excel here, or <u>browse</u></div>
+                    <div class="drag-drop-subtext">Supports CSV, XLSX, XLS formats. Headers must match standard student template.</div>
+                </div>
+
+                <!-- Preview Area -->
+                <div id="studentPreviewContainer" style="display: none;">
+                    <div class="upload-preview-summary">
+                        <div class="preview-summary-card success">
+                            <span>Valid Records to Import:</span>
+                            <strong id="studentPreviewValidCount">0</strong>
+                        </div>
+                        <div class="preview-summary-card danger">
+                            <span>Validation Failures:</span>
+                            <strong id="studentPreviewFailedCount">0</strong>
+                        </div>
+                    </div>
+
+                    <div class="preview-list">
+                        <div class="preview-row header">
+                            <div>Row</div>
+                            <div>Roll Number</div>
+                            <div>Name</div>
+                            <div>Validation Details</div>
+                        </div>
+                        <div id="studentPreviewListRows">
+                            <!-- JS Injected rows -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('bulkImportStudentsModal')">Cancel</button>
+                <button class="btn btn-primary" id="btnConfirmStudentImport" disabled onclick="executeStudentImport()">Import Records</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: BULK IMPORT FINES -->
+    <div id="bulkImportFinesModal" class="modal-overlay">
+        <div class="modal-content modal-xl">
+            <div class="modal-header">
+                <h3>Bulk Upload Fines Data</h3>
+                <button class="modal-close-btn" onclick="closeModal('bulkImportFinesModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- CSV guidelines banner -->
+                <div class="modal-instructions" style="background-color: #f8fafc; border-left: 4px solid var(--color-primary); padding: 12px; margin-bottom: 16px; font-size: 13px; border-radius: 0 4px 4px 0; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="flex-grow: 1; padding-right: 12px;">
+                        <p style="margin: 0 0 4px 0; font-weight: 600; color: var(--color-text-primary);">CSV Import Format Guidelines:</p>
+                        <span style="color: var(--color-text-secondary);">The file must be a standard CSV text file. Mandatory columns: <strong>Roll Number</strong>, <strong>Violation Category</strong>, and <strong>Session</strong>.</span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline" style="font-size: 12px; white-space: nowrap; flex-shrink: 0;" onclick="downloadCSVTemplate('fines')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        <span>Download Reference Template</span>
+                    </button>
+                </div>
+                
+                <!-- Dropzone -->
+                <div class="drag-drop-area" id="fineDropzone">
+                    <input type="file" class="file-input-hidden" id="fineFileInput" accept=".csv, .xlsx, .xls">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="drag-drop-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                    <div class="drag-drop-text">Drag and drop Fines Registry CSV or Excel here, or <u>browse</u></div>
+                    <div class="drag-drop-subtext">Supports CSV, XLSX, XLS formats. Headers must match standard fine template.</div>
+                </div>
+
+                <!-- Preview Area -->
+                <div id="finePreviewContainer" style="display: none;">
+                    <div class="upload-preview-summary">
+                        <div class="preview-summary-card success">
+                            <span>Importable:</span>
+                            <strong id="finePreviewValidCount">0</strong>
+                        </div>
+                        <div class="preview-summary-card warning">
+                            <span>Conflicts/Warnings (Will proceed):</span>
+                            <strong id="finePreviewWarningCount">0</strong>
+                        </div>
+                        <div class="preview-summary-card danger">
+                            <span>Hard Failures (Will skip):</span>
+                            <strong id="finePreviewFailedCount">0</strong>
+                        </div>
+                    </div>
+
+                    <div class="preview-list">
+                        <div class="preview-row header" style="grid-template-columns: 0.6fr 1fr 1.5fr 1.8fr 1.1fr;">
+                            <div>Row</div>
+                            <div>Roll Number</div>
+                            <div>Violation Category</div>
+                            <div>Warning/Conflict Details</div>
+                            <div>Action Choice</div>
+                        </div>
+                        <div id="finePreviewListRows">
+                            <!-- JS Injected rows -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('bulkImportFinesModal')">Cancel</button>
+                <button class="btn btn-primary" id="btnConfirmFineImport" disabled onclick="executeFineImport()">Import Fines</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: PAYMENT CONFIRMATIONS UPLOAD -->
+    <div id="paymentConfirmationsModal" class="modal-overlay">
+        <div class="modal-content modal-xl">
+            <div class="modal-header">
+                <h3>Payment Confirmations Processing</h3>
+                <button class="modal-close-btn" onclick="closeModal('paymentConfirmationsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- CSV guidelines banner -->
+                <div class="modal-instructions" style="background-color: #f8fafc; border-left: 4px solid var(--color-primary); padding: 12px; margin-bottom: 16px; font-size: 13px; border-radius: 0 4px 4px 0; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="flex-grow: 1; padding-right: 12px;">
+                        <p style="margin: 0 0 4px 0; font-weight: 600; color: var(--color-text-primary);">CSV Import Format Guidelines:</p>
+                        <span style="color: var(--color-text-secondary);">The file must be a standard CSV text file. Mandatory columns: <strong>Roll Number</strong> and <strong>Category of Fine</strong>.</span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline" style="font-size: 12px; white-space: nowrap; flex-shrink: 0;" onclick="downloadCSVTemplate('payments')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        <span>Download Reference Template</span>
+                    </button>
+                </div>
+                
+                <!-- Dropzone -->
+                <div class="drag-drop-area" id="paymentDropzone">
+                    <input type="file" class="file-input-hidden" id="paymentFileInput" accept=".csv, .xlsx, .xls">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="drag-drop-icon"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    <div class="drag-drop-text">Drag and drop Payment Confirmation CSV or Excel here, or <u>browse</u></div>
+                    <div class="drag-drop-subtext">Matches open fines via Roll Number + Fine Category. Supports CSV, XLSX, XLS formats.</div>
+                </div>
+
+                <!-- Preview Area -->
+                <div id="paymentPreviewContainer" style="display: none;">
+                    <div class="upload-preview-summary">
+                        <div class="preview-summary-card success">
+                            <span>Open Fines Found to Close:</span>
+                            <strong id="paymentPreviewMatchCount">0</strong>
+                        </div>
+                        <div class="preview-summary-card warning">
+                            <span>Multiple Matches (Needs Resolution):</span>
+                            <strong id="paymentPreviewAmbiguousCount">0</strong>
+                        </div>
+                        <div class="preview-summary-card danger">
+                            <span>Mismatches (Skipped):</span>
+                            <strong id="paymentPreviewMismatchCount">0</strong>
+                        </div>
+                    </div>
+
+                    <div class="preview-list">
+                        <div class="preview-row header" style="grid-template-columns: 0.6fr 1fr 1.5fr 1.8fr 1.1fr;">
+                            <div>Row</div>
+                            <div>Roll Number</div>
+                            <div>Reported Fine Category</div>
+                            <div>Resolution/Match Result</div>
+                            <div>Resolution Action</div>
+                        </div>
+                        <div id="paymentPreviewListRows">
+                            <!-- JS Injected rows -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('paymentConfirmationsModal')">Cancel</button>
+                <button class="btn btn-primary" id="btnConfirmPaymentProcess" disabled onclick="executePaymentProcessing()">Process Payments</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 6: FINE DETAILS MODAL (WITH AUDIT TRAIL LOG) -->
+    <div id="fineDetailModal" class="modal-overlay">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>Fine Record Details</h3>
+                <button class="modal-close-btn" onclick="closeModal('fineDetailModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Student Header Details -->
+                <div class="student-detail-header">
+                    <div>
+                        <h2 id="fdStudentName" style="font-family: var(--font-title); font-size: 20px; font-weight: 700;">Rajesh Kumar</h2>
+                        <div class="student-info-grid" style="margin-top: 12px;">
+                            <div class="student-info-item">
+                                <strong>Roll Number</strong>
+                                <span id="fdRollNumber">PGP2024001</span>
+                            </div>
+                            <div class="student-info-item">
+                                <strong>Email ID</strong>
+                                <span id="fdEmailId">rajesh.kumar@iimv.ac.in</span>
+                            </div>
+                            <div class="student-info-item">
+                                <strong>Placement Cohort</strong>
+                                <span id="fdCohort">Summer Internship Placement</span>
+                            </div>
+                            <div class="student-info-item">
+                                <strong>Registered Fines Count</strong>
+                                <span id="fdTotalFinesRegistered">0 records</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="student-flag-accumulation">
+                        <div class="title">Cohort Red Flag Counter</div>
+                        <div class="count" id="fdRedFlagCount">0 / 3</div>
+                        <div class="breakdown" id="fdRedFlagBreakdown">No red flag violations logged.</div>
+                    </div>
+                </div>
+
+                <!-- Monetary penalty totals -->
+                <div class="fine-summary-strip">
+                    <div class="summary-strip-card pending">
+                        <div>Total Pending Amount</div>
+                        <div id="fdPendingAmt">₹0</div>
+                    </div>
+                    <div class="summary-strip-card" style="border-color: var(--color-success); background-color: var(--color-success-bg); color: var(--color-success);">
+                        <div>Total Paid Amount</div>
+                        <div id="fdPaidAmt">₹0</div>
+                    </div>
+                    <div class="summary-strip-card" style="border-color: var(--color-border); background-color: #f8fafc; color: var(--color-text-secondary);">
+                        <div>Waived/Disputed</div>
+                        <div id="fdWaivedAmt">₹0</div>
+                    </div>
+                </div>
+
+                <!-- List of all student fines -->
+                <h4 style="font-family: var(--font-title); font-size: 15px; margin-bottom: 10px;">All Associated Fines for Student</h4>
+                <div class="table-container" style="margin-bottom: 24px;">
+                    <table class="responsive-table" style="font-size: 13px;">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Session</th>
+                                <th>Monetary Penalty</th>
+                                <th>Red Flag</th>
+                                <th>Status</th>
+                                <th>Differentiation Tag</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fdFinesTableBody">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Field specific Audit trail list -->
+                <div class="audit-history-section">
+                    <div class="audit-history-header" onclick="toggleAuditTrailListCollapse()">
+                        <span>Selected Fine Edit History Audit Trail</span>
+                        <svg id="fdAuditCollapseIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                    </div>
+                    <ul class="audit-history-list" id="fdAuditTrailList">
+                        <!-- Injected by JS -->
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('fineDetailModal')">Close Details</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 7: CHANGE STATUS MODAL (INDIVIDUAL AND BULK) -->
+    <div id="statusChangeModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Update Fine Resolution Status</h3>
+                <button class="modal-close-btn" onclick="closeModal('statusChangeModal')">&times;</button>
+            </div>
+            <form id="statusChangeForm">
+                <div class="modal-body">
+                    <input type="hidden" id="statusChangeTargetMode" value="INDIVIDUAL"> <!-- INDIVIDUAL / BULK -->
+                    <input type="hidden" id="statusChangeFineId">
+                    
+                    <div class="form-group" id="statusChangeCountContainer" style="display: none;">
+                        <label class="form-label">Count of Fines to Update</label>
+                        <input class="form-input" type="text" id="statusChangeCountDisplay" readonly style="background-color: #f1f5f9; font-weight: 600;">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="newStatusSelect">New Resolution Status *</label>
+                        <select class="filter-select" id="newStatusSelect" style="width: 100%;" required>
+                            <option value="OPEN">OPEN (Awaiting Action / Unpaid)</option>
+                            <option value="PROOF_SUBMITTED">PROOF SUBMITTED (Payment Proof Uploaded)</option>
+                            <option value="CLOSED">CLOSED (Paid / Waived / Resolved)</option>
+                            <option value="CARRIED_FORWARD">CARRIED FORWARD (Deferred to Next Cycle)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="closureReasonSelect">Predefined Closure / Resolution Reason *</label>
+                        <select class="filter-select" id="closureReasonSelect" style="width: 100%;" required>
+                            <option value="Payment Received">Payment Received</option>
+                            <option value="Waived">Waived</option>
+                            <option value="Dispute Resolved">Dispute Resolved</option>
+                            <option value="Administrative Action">Administrative Action</option>
+                            <option value="Re-opened / Error Correction">Re-opened / Error Correction</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="statusChangeNotes">Audit Notes / Comments</label>
+                        <textarea class="form-input" id="statusChangeNotes" rows="3" placeholder="Enter comments or reference numbers for this status change..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('statusChangeModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Apply Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 8: EXPORT MODAL -->
+    <div id="exportModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Export Fines Registry</h3>
+                <button class="modal-close-btn" onclick="closeModal('exportModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Select Fields to Include in Export</label>
+                    <div class="export-checklist">
+                        <label class="export-checklist-item"><input type="checkbox" value="studentName" checked class="table-checkbox"> Student Name</label>
+                        <label class="export-checklist-item"><input type="checkbox" value="rollNumber" checked class="table-checkbox"> Roll Number</label>
+                        <label class="export-checklist-item"><input type="checkbox" value="emailId" checked class="table-checkbox"> Email ID</label>
+                        <label class="export-checklist-item"><input type="checkbox" value="cohort" checked class="table-checkbox"> Cohort</label>
+                        <label class="export-checklist-item"><input type="checkbox" value="category" checked class="table-checkbox"> Violation Category</label>
+                        <label class="export-checklist-item"><input type="checkbox" value="penalty" checked class="table-checkbox"> Monetary Penalty Amount</label>
+                        <label class="export-checklist-item"><input type="checkbox" value="redFlags" checked class="table-checkbox"> Red Flags</label>
+                        <label class="export-checklist-item"><input type="checkbox" value="status" checked class="table-checkbox"> Status</label>
+                        <label class="export-checklist-item"><input type="checkbox" value="diffTag" checked class="table-checkbox"> Differentiation Tag</label>
+                        <label class="export-checklist-item"><input type="checkbox" value="comments" checked class="table-checkbox"> Notes/Comments</label>
+                        <label class="export-checklist-item"><input type="checkbox" value="cumulativeFlags" checked class="table-checkbox"> Current Red Flag Count</label>
+                        <label class="export-checklist-item"><input type="checkbox" value="createdAt" checked class="table-checkbox"> Created Date</label>
+                        <label class="export-checklist-item"><input type="checkbox" value="closedAt" checked class="table-checkbox"> Closed/Updated Date</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="exportFormat">Select Export Format</label>
+                    <select class="filter-select" id="exportFormat" style="width: 100%;">
+                        <option value="csv">CSV (Comma-separated text, UTF-8)</option>
+                        <option value="xlsx">Excel Mock CSV (Downloads .csv formatted for Excel with ₹ symbols)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="exportSoftDeleteInclusion">Include Soft-Deleted Records?</label>
+                    <select class="filter-select" id="exportSoftDeleteInclusion" style="width: 100%;">
+                        <option value="exclude">Exclude Soft-Deleted Records</option>
+                        <option value="include">Include Soft-Deleted Records</option>
+                        <option value="only">ONLY Soft-Deleted Records</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('exportModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="executeExport()">Generate File</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 9: DATABASE CONFIG MODAL -->
+    <div id="dbSettingsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Supabase Database Configuration</h3>
+                <button class="modal-close-btn" onclick="closeModal('dbSettingsModal')">&times;</button>
+            </div>
+            <form id="dbSettingsForm" onsubmit="saveDbSettings(event)">
+                <div class="modal-body">
+                    <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 16px; font-size: 13px; border-radius: 0 4px 4px 0; color: #1e3a8a;">
+                        Connecting to Supabase enables shared real-time data sync across Placecom members. Leave fields empty to fall back to Local-Only browser database.
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="dbSupabaseUrl">Supabase API URL</label>
+                        <input class="form-input" type="url" id="dbSupabaseUrl" placeholder="https://your-project.supabase.co">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="dbSupabaseKey">Supabase Public Anon Key</label>
+                        <input class="form-input" type="password" id="dbSupabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 15px; border-top: 1px solid var(--color-border); padding-top: 15px;">
+                        <label class="form-label" style="font-weight: 600;">Initial Sync Mode Option</label>
+                        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                            <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; cursor: pointer; color: var(--color-text-primary);">
+                                <input type="radio" name="dbSyncDirection" value="pull" checked style="margin-top: 3px;">
+                                <div>
+                                    <strong>Standard Sync:</strong> Merge local browser data with cloud data.
+                                </div>
+                            </label>
+                            <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; cursor: pointer; color: var(--color-danger);">
+                                <input type="radio" name="dbSyncDirection" value="push" style="margin-top: 3px;">
+                                <div>
+                                    <strong>Force-Overwrite Cloud:</strong> Erase all existing data on Supabase and replace it with your current local browser data.
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div style="font-size: 11px; color: var(--color-text-secondary); margin-bottom: 8px;">
+                        The keys are stored locally in your browser's private settings and are never shared.
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-outline" onclick="testDbConnection()" style="margin-right: auto;">Test Connection</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('dbSettingsModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save & Connect</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 10: UPLOAD ATTENDANCE -->
+    <div id="uploadAttendanceModal" class="modal-overlay">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>Upload Attendance or Absenteeism Sheet</h2>
+                <button class="modal-close-btn" onclick="closeModal('uploadAttendanceModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 16px; background-color: #f8fafc; padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                    <label class="form-label" style="font-weight: 600; margin-bottom: 8px;">1. Select Upload Data Type</label>
+                    <div style="display: flex; gap: 24px; align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; color: var(--color-text-primary); font-weight: 500;">
+                            <input type="radio" name="attendanceUploadType" value="present" checked onchange="updateAttendanceUploadText()">
+                            <span>Present / Attended Students (Others get fined)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; color: var(--color-text-primary); font-weight: 500;">
+                            <input type="radio" name="attendanceUploadType" value="absent" onchange="updateAttendanceUploadText()">
+                            <span>Absent Students (Only uploaded students get fined)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="modal-instructions" style="background-color: #f8fafc; border-left: 4px solid var(--color-primary); padding: 12px; margin-bottom: 16px; font-size: 13px; border-radius: 0 4px 4px 0; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <strong>Format:</strong> CSV or Excel files should have columns: <code id="attendanceFormatHint">Name, Roll Number, Email ID, Date/Time Attended (optional)</code>
+                    </div>
+                    <button class="btn btn-sm btn-outline" onclick="downloadTemplate('Attendance')">Download Template</button>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label" for="attendanceAbsenceCategorySelect">Violation Category for Absent Students *</label>
+                    <select class="form-input" id="attendanceAbsenceCategorySelect" required>
+                        <option value="" disabled selected>Select Absence Violation Category</option>
+                    </select>
+                </div>
+                
+                <div class="upload-dropzone" id="attendanceDropzone" style="border: 2px dashed var(--color-border); border-radius: var(--radius-md); padding: 30px; text-align: center; cursor: pointer; transition: all var(--transition-fast);">
+                    <input type="file" id="attendanceFileInput" accept=".csv, .xlsx, .xls" style="display: none;">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom: 12px; color: var(--color-text-secondary);"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/><line x1="12" y1="12" x2="12" y2="21"/></svg>
+                    <p id="attendanceDropzoneText" style="font-weight: 500; font-size: 14px; margin-bottom: 4px;">Drag and drop your attendance CSV or Excel file here, or click to browse</p>
+                    <p style="font-size: 11px; color: var(--color-text-muted);">Supports CSV and Excel sheets up to 5MB</p>
+                </div>
+
+                <!-- Preview Grid -->
+                <div id="attendancePreviewContainer" style="display: none; margin-top: 20px;">
+                    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">Import Preview (<span id="attendancePreviewCount">0</span> records)</h3>
+                    <div style="max-height: 250px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+                        <table class="responsive-table" style="font-size: 12px; border-radius: 0;">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Roll Number</th>
+                                    <th>Email ID</th>
+                                    <th>Validation Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendancePreviewBody">
+                                <!-- Preview rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('uploadAttendanceModal')">Cancel</button>
+                <button class="btn btn-primary" id="btnConfirmAttendanceUpload" disabled onclick="executeAttendanceImport()">Confirm Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 11: UPLOAD EVENT PROOF -->
+    <div id="uploadEventProofModal" class="modal-overlay">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>Upload Payment Proof CSV</h2>
+                <button class="modal-close-btn" onclick="closeModal('uploadEventProofModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-instructions" style="background-color: #f8fafc; border-left: 4px solid var(--color-primary); padding: 12px; margin-bottom: 16px; font-size: 13px; border-radius: 0 4px 4px 0; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <strong>Format:</strong> CSV files should have columns: <code>Name, Roll Number, Email ID</code>
+                    </div>
+                    <button class="btn btn-sm btn-outline" onclick="downloadTemplate('EventProof')">Download Template</button>
+                </div>
+                
+                <div class="upload-dropzone" id="eventProofDropzone" style="border: 2px dashed var(--color-border); border-radius: var(--radius-md); padding: 30px; text-align: center; cursor: pointer; transition: all var(--transition-fast);">
+                    <input type="file" id="eventProofFileInput" accept=".csv, .xlsx, .xls" style="display: none;">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom: 12px; color: var(--color-text-secondary);"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/><line x1="12" y1="12" x2="12" y2="21"/></svg>
+                    <p style="font-weight: 500; font-size: 14px; margin-bottom: 4px;">Drag and drop your payment proof CSV or Excel file here, or click to browse</p>
+                    <p style="font-size: 11px; color: var(--color-text-muted);">Supports CSV, XLSX, XLS formats up to 5MB</p>
+                </div>
+
+                <!-- Preview Grid -->
+                <div id="eventProofPreviewContainer" style="display: none; margin-top: 20px;">
+                    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">Import Preview (<span id="eventProofPreviewCount">0</span> records)</h3>
+                    <div style="max-height: 250px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+                        <table class="responsive-table" style="font-size: 12px; border-radius: 0;">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Roll Number</th>
+                                    <th>Match Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="eventProofPreviewBody">
+                                <!-- Preview rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('uploadEventProofModal')">Cancel</button>
+                <button class="btn btn-primary" id="btnConfirmEventProofUpload" disabled onclick="executeEventProofImport()">Confirm Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 12: RED FLAG DETAIL VIEW -->
+    <div id="redFlagDetailModal" class="modal-overlay">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>Student Red Flags Breakdown</h2>
+                <button class="modal-close-btn" onclick="closeModal('redFlagDetailModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--color-border);">
+                    <div>
+                        <strong style="font-size: 16px;" id="rfDetailStudentName">Student Name</strong>
+                        <div style="font-size: 13px; color: var(--color-text-secondary); margin-top: 4px;">
+                            <span>Roll Number: <span id="rfDetailStudentRoll" style="font-family: monospace;">N/A</span></span> &bull; 
+                            <span>Cohort: <span id="rfDetailStudentCohort">SIP</span></span>
+                        </div>
+                    </div>
+                    <div style="margin-left: auto; text-align: right;">
+                        <span class="badge badge-danger" id="rfDetailTotalBadge" style="font-size: 14px; padding: 6px 12px;">0 Flags</span>
+                    </div>
+                </div>
+
+                <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Active Fines & Violations Contributing to Flags:</h3>
+                <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                    <table class="responsive-table" style="font-size: 12px;">
+                        <thead>
+                           <tr>
+                               <th>Violation Date</th>
+                               <th>Violation Type / Category</th>
+                               <th>Fine Amount</th>
+                               <th>Flags Contribution</th>
+                               <th>Source / Context</th>
+                               <th>Status</th>
+                           </tr>
+                       </thead>
+                       <tbody id="rfDetailFinesBody">
+                           <!-- Injected dynamically -->
+                       </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('redFlagDetailModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 13: EDIT EVENT -->
+    <div id="editEventModal" class="modal-overlay">
+        <div class="modal-content modal-md">
+            <div class="modal-header">
+                <h3>Edit Event Details</h3>
+                <button class="modal-close-btn" onclick="closeModal('editEventModal')">&times;</button>
+            </div>
+            <form id="editEventForm" onsubmit="handleEditEventSubmit(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="editEventId">
+                    <div class="form-group">
+                        <label class="form-label" for="editEventName">Event Name (Locked)</label>
+                        <input class="form-input" type="text" id="editEventName" disabled style="background-color: #f1f5f9; cursor: not-allowed;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="editEventCohort">Cohort (Locked)</label>
+                        <input class="form-input" type="text" id="editEventCohort" disabled style="background-color: #f1f5f9; cursor: not-allowed;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="editEventDate">Event Date</label>
+                        <input class="form-input" type="date" id="editEventDate">
+                    </div>
+                     <div class="form-group">
+                        <label class="form-label" for="editEventDescription">Description</label>
+                        <textarea class="form-input" id="editEventDescription" rows="3" placeholder="Optional notes..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" style="color: var(--color-primary); font-weight: 600; font-size: 13px;">Add Custom Category for this Event:</label>
+                        <div style="display: flex; flex-direction: column; gap: 8px; background: #f8fafc; padding: 10px; border-radius: var(--radius-md); border: 1px dashed var(--color-border); margin-bottom: 12px;">
+                            <input class="form-input" type="text" id="editEventCustomCatName" placeholder="Category Name" style="font-size: 12px; padding: 6px 10px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <input class="form-input" type="number" id="editEventCustomCatAmount" placeholder="Fine Amount (₹)" style="font-size: 12px; padding: 6px 10px;" min="0">
+                                <input class="form-input" type="number" id="editEventCustomCatFlags" placeholder="Red Flags" style="font-size: 12px; padding: 6px 10px;" min="0" max="3">
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                <select class="form-input" id="editEventCustomCatCohort" style="font-size: 12px; padding: 6px 10px; width: auto; min-width: 120px;">
+                                    <option value="SUMMER_2026_27">Summers</option>
+                                    <option value="FINAL_2026_27">Finals</option>
+                                </select>
+                                <button type="button" class="btn btn-sm btn-primary" onclick="addEditEventCustomCategory()" style="font-size: 11px; padding: 4px 8px;">+ Add Category</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Linked Violation Categories (Add More)</label>
+                        <div id="editEventCategoriesContainer" class="checkbox-list-container" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--color-border); padding: 12px; border-radius: var(--radius-md); background: white;">
+                            <!-- Checkboxes dynamically injected -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editEventModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 14: MARK AS FINED -->
+    <div id="markAsFinedModal" class="modal-overlay">
+        <div class="modal-content modal-md">
+            <div class="modal-header">
+                <h3>Mark Student as Fined</h3>
+                <button class="modal-close-btn" onclick="closeModal('markAsFinedModal')">&times;</button>
+            </div>
+            <form id="markAsFinedForm" onsubmit="handleMarkAsFinedSubmit(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="mafStudentId">
+                    <input type="hidden" id="mafAttendanceId">
+                    <div class="form-group">
+                        <label class="form-label">Student Name</label>
+                        <input class="form-input" type="text" id="mafStudentName" disabled style="background-color: #f1f5f9; cursor: not-allowed;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Roll Number</label>
+                        <input class="form-input" type="text" id="mafStudentRoll" disabled style="background-color: #f1f5f9; cursor: not-allowed;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="mafCategorySelect">Violation Category *</label>
+                        <select class="form-input" id="mafCategorySelect" required onchange="populateMafDefaults()">
+                            <!-- Dynamically populated -->
+                        </select>
+                    </div>
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label" for="mafFineAmount">Monetary Penalty (₹)</label>
+                            <input class="form-input" type="number" id="mafFineAmount">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="mafRedFlags">Red Flags</label>
+                            <input class="form-input" type="number" id="mafRedFlags" min="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="mafComments">Comments / Notes</label>
+                        <textarea class="form-input" id="mafComments" rows="2" placeholder="Optional comments..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('markAsFinedModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Fine</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 15: CLOSE FINE -->
+    <div id="closeFineModal" class="modal-overlay">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3>Close Fine Record</h3>
+                <button class="modal-close-btn" onclick="closeModal('closeFineModal')">&times;</button>
+            </div>
+            <form id="closeFineForm" onsubmit="handleCloseFineSubmit(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="cfFineId">
+                    <div class="form-group">
+                        <label class="form-label" for="cfReason">Closure Reason *</label>
+                        <select class="form-input" id="cfReason" required>
+                            <option value="Payment Received">Payment Received</option>
+                            <option value="Waived">Waived</option>
+                            <option value="Appealed & Cleared">Appealed & Cleared</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="cfNotes">Closure Notes</label>
+                        <textarea class="form-input" id="cfNotes" rows="2" placeholder="Justify closure details..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('closeFineModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Close Fine</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 16: UPLOAD EVENT VIOLATIONS -->
+    <div id="uploadViolationsModal" class="modal-overlay">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>Upload Event Violations Sheet</h2>
+                <button class="modal-close-btn" onclick="closeModal('uploadViolationsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-instructions" style="background-color: #f8fafc; border-left: 4px solid var(--color-primary); padding: 12px; margin-bottom: 16px; font-size: 13px; border-radius: 0 4px 4px 0; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <strong>Format:</strong> CSV or Excel files should have columns: <code>Roll Number, Name, Category, Penalty Override (optional), Flags Override (optional), Notes (optional)</code>
+                    </div>
+                    <button class="btn btn-sm btn-outline" onclick="downloadTemplate('violations')">Download Template</button>
+                </div>
+                
+                <div class="upload-dropzone" id="violationsDropzone" style="border: 2px dashed var(--color-border); border-radius: var(--radius-md); padding: 30px; text-align: center; cursor: pointer; transition: all var(--transition-fast);">
+                    <input type="file" id="violationsFileInput" accept=".csv, .xlsx, .xls" style="display: none;">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom: 12px; color: var(--color-text-secondary);"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/><line x1="12" y1="12" x2="12" y2="21"/></svg>
+                    <p style="font-weight: 500; font-size: 14px; margin-bottom: 4px;">Drag and drop your violations CSV or Excel file here, or click to browse</p>
+                    <p style="font-size: 11px; color: var(--color-text-muted);">Supports CSV and Excel sheets up to 5MB</p>
+                </div>
+
+                <!-- Preview Grid with Inline Editing -->
+                <div id="violationsPreviewContainer" style="display: none; margin-top: 20px;">
+                    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">Import Preview & Inline Editor (<span id="violationsPreviewCount">0</span> records)</h3>
+                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+                        <table class="responsive-table" style="font-size: 12px; border-radius: 0;">
+                            <thead>
+                                <tr>
+                                    <th>Roll Number *</th>
+                                    <th>Name *</th>
+                                    <th>Category *</th>
+                                    <th style="width: 110px;">Fine Amount (₹)</th>
+                                    <th style="width: 80px;">Red Flags</th>
+                                    <th>Status / Warnings</th>
+                                    <th style="width: 60px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="violationsPreviewBody">
+                                <!-- Preview rows injected with inputs for editing -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('uploadViolationsModal')">Cancel</button>
+                <button class="btn btn-primary" id="btnConfirmViolationsUpload" disabled onclick="executeViolationsImport()">Confirm Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 17: ADD EVENT FINE MANUALLY -->
+    <div id="addEventFineManualModal" class="modal-overlay">
+        <div class="modal-content modal-md">
+            <div class="modal-header">
+                <h3>Add Event Fine Manually</h3>
+                <button class="modal-close-btn" onclick="closeModal('addEventFineManualModal')">&times;</button>
+            </div>
+            <form id="addEventFineManualForm" onsubmit="handleAddEventFineManualSubmit(event)">
+                <div class="modal-body">
+                    <!-- Step 1: Student Source -->
+                    <div class="form-group">
+                        <label class="form-label">Step 1: Student Source</label>
+                        <div style="display: flex; gap: 20px; margin-top: 6px;">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                                <input type="radio" name="efmSource" value="ATTENDANCE" checked onchange="populateEfmStudents()">
+                                <span>From Attended/Registered List</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                                <input type="radio" name="efmSource" value="MASTER" onchange="populateEfmStudents()">
+                                <span>From Student Master (Entire Cohort)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Select Student -->
+                    <div class="form-group">
+                        <label class="form-label" for="efmStudentSelect">Step 2: Select Student *</label>
+                        <select class="form-input" id="efmStudentSelect" required>
+                            <!-- Dynamically populated -->
+                        </select>
+                    </div>
+
+                    <!-- Step 3: Select Violation Category -->
+                    <div class="form-group">
+                        <label class="form-label" for="efmCategorySelect">Step 3: Violation Category *</label>
+                        <select class="form-input" id="efmCategorySelect" required onchange="populateEfmDefaults()">
+                            <!-- Dynamically populated linked categories -->
+                        </select>
+                    </div>
+
+                    <!-- Custom Category Override Group -->
+                    <div class="form-group" id="efmCustomCategoryGroup" style="display: none;">
+                        <label class="form-label" for="efmCustomCategory">Custom Category Name *</label>
+                        <input class="form-input" type="text" id="efmCustomCategory" placeholder="Enter custom category name">
+                    </div>
+
+                    <!-- Step 4: Overrides -->
+                    <div class="form-group">
+                        <label class="form-label">Step 4: Overrides & Notes</label>
+                        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px;">
+                            <div class="form-group">
+                                <label class="form-label" for="efmFineAmount">Monetary Penalty (₹)</label>
+                                <input class="form-input" type="number" id="efmFineAmount">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="efmRedFlags">Red Flags</label>
+                                <input class="form-input" type="number" id="efmRedFlags" min="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="efmComments">Comments / Notes</label>
+                        <textarea class="form-input" id="efmComments" rows="2" placeholder="Optional notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addEventFineManualModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Fine</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 10: CREATE PLACEMENT EVENT -->
+    <div id="createEventModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Create Placement Event</h3>
+                <button class="modal-close-btn" onclick="closeModal('createEventModal')">&times;</button>
+            </div>
+            <form id="createEventForm" onsubmit="handleCreateEventSubmit(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="newEventName">Event Name *</label>
+                        <input class="form-input" type="text" id="newEventName" placeholder="e.g. Pre-Placement Talk - 12-July" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Cohort *</label>
+                        <div style="display: flex; gap: 20px; margin-top: 6px;" id="newEventCohortContainer">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                                <input type="checkbox" name="newEventCohort" value="SUMMER_2026_27" onchange="populateViolationCategoriesForNewEvent()">
+                                <span>Summers</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                                <input type="checkbox" name="newEventCohort" value="FINAL_2026_27" onchange="populateViolationCategoriesForNewEvent()">
+                                <span>Finals</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group" style="position: relative;">
+                        <label class="form-label">Violation Categories (Multi-select) *</label>
+                        <button type="button" class="form-input" id="newEventCategoriesBtn" onclick="toggleNewEventCategoriesDropdown()" style="text-align: left; display: none; justify-content: space-between; align-items: center; cursor: pointer; background: white; width: 100%;">
+                            <span id="newEventCategoriesBtnText">Select Categories...</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: auto;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div id="newEventCategoriesDropdown" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 1000; background: white; border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 250px; overflow-y: auto; padding: 12px;">
+                            <div id="newEventCategoriesContainer">
+                                <!-- Checkboxes dynamically injected -->
+                            </div>
+                            <hr style="margin: 12px 0; border: 0; border-top: 1px solid var(--color-border);">
+                            <div style="padding: 4px;">
+                                <p style="font-weight: 600; font-size: 12px; margin: 0 0 8px 0; color: var(--color-primary);">Add Custom Category for this Event:</p>
+                                <div style="display: flex; flex-direction: column; gap: 8px; background: #f8fafc; padding: 8px; border-radius: var(--radius-sm); border: 1px dashed var(--color-border);">
+                                    <input class="form-input" type="text" id="newEventCustomCatName" placeholder="Category Name" style="font-size: 12px; padding: 6px 10px;">
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                        <input class="form-input" type="number" id="newEventCustomCatAmount" placeholder="Fine Amount (₹)" style="font-size: 12px; padding: 6px 10px;" min="0">
+                                        <input class="form-input" type="number" id="newEventCustomCatFlags" placeholder="Red Flags" style="font-size: 12px; padding: 6px 10px;" min="0" max="3">
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                        <select class="form-input" id="newEventCustomCatCohort" style="font-size: 12px; padding: 6px 10px; width: auto; min-width: 120px;">
+                                            <option value="SUMMER_2026_27">Summers</option>
+                                            <option value="FINAL_2026_27">Finals</option>
+                                        </select>
+                                        <button type="button" class="btn btn-sm btn-primary" onclick="addNewEventCustomCategory()" style="font-size: 11px; padding: 4px 8px;">+ Add</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <hr style="margin: 12px 0; border: 0; border-top: 1px solid var(--color-border);">
+                            <div style="display: flex; justify-content: flex-end;">
+                                <button type="button" class="btn btn-sm btn-primary" onclick="closeNewEventCategoriesDropdown()">Done</button>
+                            </div>
+                        </div>
+                        <p id="newEventCategoriesPlaceholder" style="font-size: 13px; color: var(--color-text-muted); margin-top: 4px;">Select cohort first to see matching categories.</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="newEventDate">Event Date</label>
+                        <input class="form-input" type="date" id="newEventDate">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="newEventDescription">Description</label>
+                        <textarea class="form-input" id="newEventDescription" rows="3" placeholder="Optional notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('createEventModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Event</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP SCRIPT -->
+    <script src="app.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
